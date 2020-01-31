@@ -1,14 +1,6 @@
 import ee
-from scripts.MOD16 import MOD16
-
-roi = ee.Geometry.Polygon(
-        [[[-112.241, 33.078],
-          [-112.241, 31.733],
-          [-108.758, 31.733],
-          [-108.758, 33.078]]], None, False)
-pnt = ee.Geometry.Point([-111.651, 32.631])
-
-
+from scripts.ee_MOD16 import MOD16
+from scripts.ExtractGeeData import ExtractGeeData
 
 year = 2015
 meteo = ee.ImageCollection('IDAHO_EPSCOR/GRIDMET')
@@ -21,7 +13,11 @@ meteo = ee.ImageCollection('IDAHO_EPSCOR/GRIDMET')
 dayl = ee.ImageCollection('NASA/ORNL/DAYMET_V3').select('dayl')
 elev = ee.Image('USGS/NED')
 
+extractor = ExtractGeeData(template='../data/template_example.csv',
+                           model=MOD16,
+                           out_dir='../data',
+                           meteorology=meteo,
+                           daylength=dayl,
+                           elev=elev)
 
-ET = MOD16(roi, year, meteo, dayl, elev)
-
-print(ET)
+extractor.run_model(restart=True)

@@ -2,42 +2,41 @@ import ee
 
 ee.Initialize()
 
-def make_pft_lc(roi, start, end):
 
-    pft  =  ee.ImageCollection('MODIS/006/MCD12Q1')\
-        .filterDate(start, end.advance(-1, 'day'))\
-        .select('LC_Type2')\
-        .first()\
+def make_pft_lc(roi, start, end):
+    pft = ee.ImageCollection('MODIS/006/MCD12Q1') \
+        .filterDate(start, end.advance(-1, 'day')) \
+        .select('LC_Type2') \
+        .first() \
         .clip(roi)
-    
-    # 1  =  ENF, 2  =  EBF, 3  =  DNF, 4  =  DBF, 5  =  MF, 6  =  CSH,
-    # 7  =  OSH, 8  =  WSA, 9  =  SAV, 10  =  GRA, 11  =  CRO
-    
+
+    # 1 = ENF, 2 = EBF, 3 = DNF, 4 = DBF, 5 = MF, 6 = CSH,
+    # 7 = OSH, 8 = WSA, 9 = SAV, 10 = GRA, 11 = CRO
+
     # Distinguish different MODIS plant functional types
-    pft_lc  =  ee.Image(0)
-    pft_lc  =  pft_lc.where(pft.eq(1), 1)
-    pft_lc  =  pft_lc.where(pft.eq(2), 2)
-    pft_lc  =  pft_lc.where(pft.eq(3), 3)
-    pft_lc  =  pft_lc.where(pft.eq(4), 4)
-    pft_lc  =  pft_lc.where(pft.eq(5), 5)
-    pft_lc  =  pft_lc.where(pft.eq(6), 6)
-    pft_lc  =  pft_lc.where(pft.eq(7), 7)
-    pft_lc  =  pft_lc.where(pft.eq(8), 8)
-    pft_lc  =  pft_lc.where(pft.eq(9), 9)
-    pft_lc  =  pft_lc.where(pft.eq(10), 10)
-    pft_lc  =  pft_lc.where(pft.eq(12), 11)
-    
+    pft_lc = ee.Image(0)
+    pft_lc = pft_lc.where(pft.eq(1), 1)
+    pft_lc = pft_lc.where(pft.eq(2), 2)
+    pft_lc = pft_lc.where(pft.eq(3), 3)
+    pft_lc = pft_lc.where(pft.eq(4), 4)
+    pft_lc = pft_lc.where(pft.eq(5), 5)
+    pft_lc = pft_lc.where(pft.eq(6), 6)
+    pft_lc = pft_lc.where(pft.eq(7), 7)
+    pft_lc = pft_lc.where(pft.eq(8), 8)
+    pft_lc = pft_lc.where(pft.eq(9), 9)
+    pft_lc = pft_lc.where(pft.eq(10), 10)
+    pft_lc = pft_lc.where(pft.eq(12), 11)
+
     return pft_lc
 
 
 def m16_bplut(roi, start, end):
-
-    pft_lc  =  make_pft_lc(roi, start, end)
+    pft_lc = make_pft_lc(roi, start, end)
 
     # Update mask so that we only use images with a valid land cover type
-    lc  =  pft_lc.updateMask(pft_lc.neq(0))
+    lc = pft_lc.updateMask(pft_lc.neq(0))
 
-    Tminclose  =  {1: -8.0,
+    Tminclose = {1: -8.0,
                  2: -8.0,
                  3: -8.0,
                  4: -6.0,
@@ -49,7 +48,7 @@ def m16_bplut(roi, start, end):
                  10: -8.0,
                  11: -8.0}
 
-    Tminopen  =  {1: 8.31,
+    Tminopen = {1: 8.31,
                 2: 9.09,
                 3: 10.44,
                 4: 9.94,
@@ -61,32 +60,31 @@ def m16_bplut(roi, start, end):
                 10: 12.02,
                 11: 12.02}
 
-    VPDclose  =  {1: 3000.0,
-                 2: 4000.0,
-                 3: 3500.0,
-                 4: 2900.0,
-                 5: 2900.0,
-                 6: 4300.0,
-                 7: 4400.0,
-                 8: 3500.0,
-                 9: 3600.0,
-                 10: 4200.0,
-                 11: 4500.0}
+    VPDclose = {1: 3000.0,
+                2: 4000.0,
+                3: 3500.0,
+                4: 2900.0,
+                5: 2900.0,
+                6: 4300.0,
+                7: 4400.0,
+                8: 3500.0,
+                9: 3600.0,
+                10: 4200.0,
+                11: 4500.0}
 
-    VPDopen  =  {1: 650.0,
-                 2: 1000.0,
-                 3: 650.0,
-                 4: 650.0,
-                 5: 650.0,
-                 6: 650.0,
-                 7: 650.0,
-                 8: 650.0,
-                 9: 650.0,
-                 10: 650.0,
-                 11: 650.0}
+    VPDopen = {1: 650.0,
+               2: 1000.0,
+               3: 650.0,
+               4: 650.0,
+               5: 650.0,
+               6: 650.0,
+               7: 650.0,
+               8: 650.0,
+               9: 650.0,
+               10: 650.0,
+               11: 650.0}
 
-
-    Gl_sh  =  {1: 0.04,
+    Gl_sh = {1: 0.04,
              2: 0.01,
              3: 0.04,
              4: 0.01,
@@ -98,7 +96,7 @@ def m16_bplut(roi, start, end):
              10: 0.02,
              11: 0.02}
 
-    Gl_e_wv  =  {1: 0.04,
+    Gl_e_wv = {1: 0.04,
                2: 0.01,
                3: 0.04,
                4: 0.01,
@@ -110,7 +108,7 @@ def m16_bplut(roi, start, end):
                10: 0.02,
                11: 0.02}
 
-    CL  =  {1: 0.0032,
+    CL = {1: 0.0032,
           2: 0.0025,
           3: 0.0032,
           4: 0.0028,
@@ -122,7 +120,7 @@ def m16_bplut(roi, start, end):
           10: 0.0070,
           11: 0.0070}
 
-    RBL_min  =  {1: 65.0,
+    RBL_min = {1: 65.0,
                2: 70.0,
                3: 65.0,
                4: 65.0,
@@ -134,8 +132,7 @@ def m16_bplut(roi, start, end):
                10: 20.0,
                11: 20.0}
 
-
-    RBL_max  =  {1: 95.0,
+    RBL_max = {1: 95.0,
                2: 100.0,
                3: 95.0,
                4: 100.0,
@@ -158,41 +155,39 @@ def m16_bplut(roi, start, end):
     rblmax = ee.Image(0)
 
     for i in range(1, 12):
-        tminclose = tminclose.where(lc.eq(i),Tminclose[i])
-        tminopen = tminopen.where(lc.eq(i),Tminopen[i])
-        vpdclose = vpdclose.where(lc.eq(i),VPDclose[i])
-        vpdopen = vpdopen.where(lc.eq(i),VPDopen[i])
-        gl_sh = gl_sh.where(lc.eq(i),Gl_sh[i])
-        gl_e_wv = gl_e_wv.where(lc.eq(i),Gl_e_wv[i])
-        cl = cl.where(lc.eq(i),CL[i])
-        rblmin = rblmin.where(lc.eq(i),RBL_min[i])
-        rblmax = rblmax.where(lc.eq(i),RBL_max[i])
+        tminclose = tminclose.where(lc.eq(i), Tminclose[i])
+        tminopen = tminopen.where(lc.eq(i), Tminopen[i])
+        vpdclose = vpdclose.where(lc.eq(i), VPDclose[i])
+        vpdopen = vpdopen.where(lc.eq(i), VPDopen[i])
+        gl_sh = gl_sh.where(lc.eq(i), Gl_sh[i])
+        gl_e_wv = gl_e_wv.where(lc.eq(i), Gl_e_wv[i])
+        cl = cl.where(lc.eq(i), CL[i])
+        rblmin = rblmin.where(lc.eq(i), RBL_min[i])
+        rblmax = rblmax.where(lc.eq(i), RBL_max[i])
 
-
-
-    bplut = lc.addBands(tminclose)\
-                  .addBands(tminopen)\
-                  .addBands(vpdclose)\
-                  .addBands(vpdopen)\
-                  .addBands(gl_sh)\
-                  .addBands(gl_e_wv)\
-                  .addBands(cl)\
-                  .addBands(rblmin)\
-                  .addBands(rblmax)\
-                  .select([0,1,2,3,4,5,6,7,8,9],
-                  ['landcover','Tminclose','Tminopen','VPDclose','VPDopen',
-                   'gl_sh','gl_e_wv','Cl','RBL_min','RBL_max'])
+    bplut = lc.addBands(tminclose) \
+        .addBands(tminopen) \
+        .addBands(vpdclose) \
+        .addBands(vpdopen) \
+        .addBands(gl_sh) \
+        .addBands(gl_e_wv) \
+        .addBands(cl) \
+        .addBands(rblmin) \
+        .addBands(rblmax) \
+        .select([0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                ['landcover', 'Tminclose', 'Tminopen', 'VPDclose', 'VPDopen',
+                 'gl_sh', 'gl_e_wv', 'Cl', 'RBL_min', 'RBL_max'])
 
     return bplut.updateMask(pft_lc.neq(0))
 
-def m17_bplut(roi, start, end):
 
-    pft_lc  =  make_pft_lc(roi, start, end)
-    
+def m17_bplut(roi, start, end):
+    pft_lc = make_pft_lc(roi, start, end)
+
     # Update mask so that we only use images with a valid land cover type
-    lc  =  pft_lc.updateMask(pft_lc.neq(0))
-    
-    LUEmax  =  {1: 0.000962,
+    lc = pft_lc.updateMask(pft_lc.neq(0))
+
+    LUEmax = {1: 0.000962,
               2: 0.001268,
               3: 0.001086,
               4: 0.001165,
@@ -203,8 +198,8 @@ def m17_bplut(roi, start, end):
               9: 0.001206,
               10: 0.000860,
               11: 0.001044}
-    
-    Tmin_min  =  {1: -8.0,
+
+    Tmin_min = {1: -8.0,
                 2: -8.0,
                 3: -8.0,
                 4: -6.0,
@@ -215,8 +210,8 @@ def m17_bplut(roi, start, end):
                 9: -8.0,
                 10: -8.0,
                 11: -8.0}
-    
-    Tmin_max  =  {1: 8.31,
+
+    Tmin_max = {1: 8.31,
                 2: 9.09,
                 3: 10.44,
                 4: 9.94,
@@ -227,8 +222,8 @@ def m17_bplut(roi, start, end):
                 9: 11.39,
                 10: 12.02,
                 11: 12.02}
-    
-    VPD_min  =  {1: 650.0,
+
+    VPD_min = {1: 650.0,
                2: 800.0,
                3: 650.0,
                4: 650.0,
@@ -239,9 +234,8 @@ def m17_bplut(roi, start, end):
                9: 650.0,
                10: 650.0,
                11: 650.0}
-    
-    
-    VPD_max  =  {1: 4600.0,
+
+    VPD_max = {1: 4600.0,
                2: 3100.0,
                3: 2300.0,
                4: 1650.0,
@@ -252,27 +246,25 @@ def m17_bplut(roi, start, end):
                9: 3100.0,
                10: 5300.0,
                11: 4300.0}
-    
+
     luemax = ee.Image(0)
     tminmin = ee.Image(0)
     tminmax = ee.Image(0)
     vpdmin = ee.Image(0)
     vpdmax = ee.Image(0)
-    
+
     for i in range(1, 12):
-        luemax = luemax.where(lc.eq(i),LUEmax[i])
+        luemax = luemax.where(lc.eq(i), LUEmax[i])
         tminmin = tminmin.where(lc.eq(i), Tmin_min[i])
         tminmax = tminmax.where(lc.eq(i), Tmin_max[i])
         vpdmin = vpdmin.where(lc.eq(i), VPD_min[i])
         vpdmax = vpdmax.where(lc.eq(i), VPD_max[i])
-    
-    bplut = lc.addBands(luemax)\
-              .addBands(tminmin)\
-              .addBands(tminmax)\
-              .addBands(vpdmin)\
-              .addBands(vpdmax)\
-              .select([0, 1, 2, 3, 4, 5], ['landcover', 'luemax', 'tmmin', 'tmmax', 'vpdmax', 'vpdmin'])
-    
+
+    bplut = lc.addBands(luemax) \
+        .addBands(tminmin) \
+        .addBands(tminmax) \
+        .addBands(vpdmin) \
+        .addBands(vpdmax) \
+        .select([0, 1, 2, 3, 4, 5], ['landcover', 'luemax', 'tmmin', 'tmmax', 'vpdmax', 'vpdmin'])
+
     return bplut.updateMask(pft_lc.neq(0))
-
-
