@@ -208,8 +208,9 @@ def LEsoil_day(df):
 
     df = PLE_soil_day(df)
     df = LEwetsoil_day(df)
+    df['fSM_day'] = (df.rh*0.01) ** (df.vpd_day/250.0)
 
-    df['LEsoil_day'] = (df.PLEsoil_day*df.fSM)+df.LEwetsoil_day
+    df['LEsoil_day'] = (df.PLEsoil_day*df.fSM_day)+df.LEwetsoil_day
     return df
 
 
@@ -218,21 +219,24 @@ def LEsoil_night(df):
 
     df = PLE_soil_night(df)
     df = LEwetsoil_night(df)
+    df['fSM_night'] = (df.rh*0.01) ** (df.vpd_night/250.0)
 
-    df['LEsoil_night'] = (df.PLEsoil_night*df.fSM)+df.LEwetsoil_night
+    df['LEsoil_night'] = (df.PLEsoil_night*df.fSM_night)+df.LEwetsoil_night
     return df
 
 
 # -------------------------------------------------Evapotranspiration------------------------------------------
 # calculate total ET
-def et_calc(df, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh, gl_e_wv, Cl, rbl_min, rbl_max):
+def MOD16(dataset, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh, gl_e_wv, Cl, rbl_min, rbl_max):
 
+    df = dataset.df
+    target = dataset.df.target
     df = LEwetfun_day(df, gl_sh=gl_sh, gl_e_wv=gl_e_wv)
     df = LEwetfun_night(df, gl_sh=gl_sh, gl_e_wv=gl_e_wv)
 
     df = LEtrans_day(df, Cl=Cl, gl_sh=gl_sh, vpd_open=vpd_open, vpd_close=vpd_close,
                      tmin_open=tmin_open, tmin_close=tmin_close)
-    df = LEtrans_night(df, Cl=Cl, gl_sh=gl_sh)
+    df = LEtrans_night(df, gl_sh=gl_sh)
     df = PLE_plant_day(df)
     df = PLE_plant_night(df)
 
@@ -255,8 +259,9 @@ def et_calc(df, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh, gl_e_wv, Cl, 
 
     df['ET_day'] = df.LE_day/df.lamda_day
     df['ET_night'] = df.LE_night/df.lamda_night
-    df['ET_mod'] = df.ET_day + df.ET_night
     df['LE'] = df.LE_day + df.LE_night
+    df['simulation'] = df.ET_day + df.ET_night
+    df['target'] = target
 
-    return df
-
+    dataset.df = df
+    dataset.fill_simulation()

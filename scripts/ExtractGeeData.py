@@ -119,7 +119,7 @@ class ExtractGeeData(object):
             self.full_dataset = pd.concat([self.full_dataset, df])
 
             # Save out data every model run in case of crash.
-            self.full_dataset.to_csv(os.path.join(self.out_dir, 'temp_save.csv'))
+            self.full_dataset.to_csv(os.path.join(self.out_dir, 'temp_save.csv'), index=False)
 
-        self.full_dataset.to_csv(os.path.join(self.out_dir, 'modeled_results.csv'))
+        self.full_dataset.to_csv(os.path.join(self.out_dir, 'modeled_results.csv'), index=False)
         return self.full_dataset
