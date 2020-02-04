@@ -1,7 +1,7 @@
 import spotpy
-import pandas as pd
 import numpy as np
 import os
+import pandas as pd
 from sklearn.model_selection import KFold
 from typing import Callable
 from scripts.Dataset import Dataset
@@ -25,34 +25,49 @@ class CalibrateParameters(object):
             raise KeyError("parameters not in kwargs. Parameters must be present for calibration")
         self.param_dict = kwargs['parameters']
 
-    def train_and_test(self, df, group):
+    def _find_opt_params(self, param_file):
+
+        params = pd.read_csv(param_file)
+        if 'filter' in self.kwargs['filter']:
+            params = params.query(self.kwargs['filter'])
+
+        params = params.groupby('chain').apply(lambda x: x[x['like1'] == x['like1'].max()])
+        params = params.drop(columns=['chain', 'like1']).reset_index().drop(columns=['level_1']).drop(columns=['chain'])
+        params = params.agg('mean').to_frame().reset_index()
+        params['index'] = params['index'].str.replace('par', '')
+
+        return params.set_index('index').to_dict()[0]
+
+    def _train_and_test(self, df, group):
+
+        if group is not None:
+            df = df[df['group'] == group]
 
         fold = 0
         kf = KFold(n_splits=self.nFolds, shuffle=self.shuffle)
         for train, test in kf.split(df):
 
-            train_df = df.filter(train, axis=0)
-            test_df = df.filter(test, axis=0)
-            save_name = os.path.join()
+            train_df = Dataset(df.filter(train, axis=0))
+            test_df = Dataset(df.filter(test, axis=0))
+            grp_name = group if group is not None else 'NoGroup'
+            save_name = os.path.join(self.out_dir, 'nRuns-'+str(self.nRuns)+'_fold-'+str(fold)+'_group-'+grp_name)
 
-            model = Calibration(param_dict=self.param_dict, model=self.model, df=train_df)
+            model = Calibration(param_dict=self.param_dict, model=self.model, dataset=train_df)
+            sampler = spotpy.algorithms.demcz(model, dbname=save_name, dbformat='csv', save_sim=False)
+            sampler.sample(repetitions=self.nRuns, nChains=self.nChains)
 
-            sampler = spotpy.algorithms.demcz(model,
-                                              dbname=out_dir + '/' + str(nrun) + '_' + pft + '_fold' + str(fold) + '_' +
-                                                     str(nChains), dbformat='csv', save_sim=False, parallel='mpc')
-            sampler.sample(repetitions=nrun, nChains=nChains)
+            params = self._find_opt_params(save_name+'.csv')
+            validation = self.model(test_df, **params)
+            validation = validation.df
+            validation.to_csv(os.path.join(self.out_dir, 'fold-'+str(fold)+'_group-'+grp_name+'_holdout.csv'),
+                              index=False)
 
+            fold += 1
 
-            validation = et_calc(test_df, tmin_open=bplut['tmin_open'][pft_dict[pft]],
-                                 tmin_close=bplut['tmin_close'][pft_dict[pft]], vpd_open=params['parvpd_open'],
-                                 vpd_close=params['parvpd_close'], sm_close=params['parsm_close'],
-                                 sm_open=params['parsm_open'], gl_sh=params['pargl_sh'], gl_e_wv=params['pargl_e_wv'],
-                                 Cl=params['parCl'], rbl_min=params['parrbl_min'], rbl_max=params['parrbl_max'])
+    def calibrate(self):
 
-            validation.to_csv(os.path.join(out_dir, pft + '_' + str(fold) + '_holdout.csv'), index=False)
-
-            params['pft'] = pft
-            err_df.append(params)
-            i += 1
-
-        return pd.DataFrame(err_df)
+        if self.grp_list is None:
+            self._train_and_test(self.dataset.df.copy(), None)
+        else:
+            for grp in self.grp_list:
+                self._train_and_test(self.dataset.df.copy(), grp)

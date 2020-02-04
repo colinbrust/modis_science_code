@@ -4,11 +4,16 @@ from typing import Optional
 
 class Dataset(object):
 
-    def __init__(self, df: pd.DataFrame, obs_df=None: Optional[pd.DataFrame]) -> None:
+    def __init__(self, df: pd.DataFrame, obs_df: Optional[pd.DataFrame] = None) -> None:
         self.df = df
         self.df = self._change_timestamp(self.df)
-        self.target = self.df['target'].values if 'target' in self.df.columns else None
-        self.simulation = self.df['simulation'].values if 'simulation' in self.df.columns else None
+        if obs_df is not None:
+            obs_df = self._change_timestamp(obs_df)
+            self.merge_model_with_obs(obs_df)
+        self.target = None
+        self.simulation = None
+        self.fill_target()
+        self.fill_simulation()
 
     @staticmethod
     def _change_timestamp(df):
@@ -19,18 +24,18 @@ class Dataset(object):
     def merge_model_with_obs(self, obs) -> pd.DataFrame:
         obs = self._change_timestamp(obs)
         self.df = self.df.merge(obs, how='left', left_on=['date', 'name'], right_on=['date', 'name'])
-        self._fill_simulation()
-        self._fill_target()
+        self.fill_simulation()
+        self.fill_target()
 
     def filter_nan_obs(self):
         self.df = self.df[self.df['target'].notnull()]
-        self._fill_simulation()
-        self._fill_target()
+        self.fill_simulation()
+        self.fill_target()
 
-    def _fill_simulation(self):
+    def fill_simulation(self):
         self.simulation = self.df['simulation'].values if 'simulation' in self.df.columns else None
 
-    def _fill_target(self):
+    def fill_target(self):
         self.target = self.df['target'].values if 'target' in self.df.columns else None
 
     def join_with_groups(self, grp_df):

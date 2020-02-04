@@ -265,3 +265,4 @@ def MOD16(dataset, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh, gl_e_wv, C
 
     dataset.df = df
     dataset.fill_simulation()
+    dataset.fill_target()
