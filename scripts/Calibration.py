@@ -1,11 +1,11 @@
 import spotpy
+import pandas as pd
 from typing import Dict, Callable
-from scripts.Dataset import Dataset
 
 
 class Calibration(object):
 
-    def __init__(self, param_dict: Dict, model: Callable, dataset: Dataset) -> None:
+    def __init__(self, param_dict: Dict, model: Callable, dataset: pd.DataFrame) -> None:
 
         self.param_dict = param_dict
         self.params = self.gen_params()
@@ -28,10 +28,10 @@ class Calibration(object):
         param_inputs = [vector[x] for x in self.param_names]
         param_inputs = dict(zip(self.param_names, param_inputs))
         dat = self.model(self.dataset, **param_inputs)
-        return dat.simulation
+        return dat.simulation.values
 
     def evaluation(self):
-        return self.dataset.target
+        return self.dataset.target.values
 
     def objectivefunction(self, simulation, evaluation):
         objectivefunction = -spotpy.objectivefunctions.rmse(evaluation, simulation)

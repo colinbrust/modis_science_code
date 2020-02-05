@@ -1,6 +1,6 @@
 import ee
 from scripts import GetModisFpar as fp
-from scripts import BPLUT as bp
+from scripts import Bplut as bp
 
 ee.Initialize()
 

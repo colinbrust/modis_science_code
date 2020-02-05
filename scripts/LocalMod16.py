@@ -227,10 +227,8 @@ def LEsoil_night(df):
 
 # -------------------------------------------------Evapotranspiration------------------------------------------
 # calculate total ET
-def MOD16(dataset, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh, gl_e_wv, Cl, rbl_min, rbl_max):
+def MOD16(df, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh, gl_e_wv, Cl, rbl_min, rbl_max):
 
-    df = dataset.df
-    target = dataset.df.target
     df = LEwetfun_day(df, gl_sh=gl_sh, gl_e_wv=gl_e_wv)
     df = LEwetfun_night(df, gl_sh=gl_sh, gl_e_wv=gl_e_wv)
 
@@ -261,8 +259,5 @@ def MOD16(dataset, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh, gl_e_wv, C
     df['ET_night'] = df.LE_night/df.lamda_night
     df['LE'] = df.LE_day + df.LE_night
     df['simulation'] = df.ET_day + df.ET_night
-    df['target'] = target
 
-    dataset.df = df
-    dataset.fill_simulation()
-    dataset.fill_target()
+    return df

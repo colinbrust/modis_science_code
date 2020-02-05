@@ -80,7 +80,7 @@ class ExtractGeeData(object):
 
         return pd.DataFrame(df)
 
-    def _restart(self):
+    def _restart(self) -> None:
 
         completed = pd.read_csv(os.path.join(self.out_dir, 'temp_save.csv'))
         completed = completed[['name', 'year']].drop_duplicates()
