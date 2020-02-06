@@ -10,7 +10,7 @@ def calc_lue(df, LUE_max, VPD_max, VPD_min, T_max, T_min):
     df['VPDscalar'] = (VPD_max - (df.vpd * 1000)) / (VPD_max - VPD_min)
     df['VPDscalar'] = np.clip(df.VPDscalar, 0, 1)
 
-    df['LUE'] = LUE_max * df.Tscalar * df.VPDscalar
+    df['lue'] = LUE_max * df.Tscalar * df.VPDscalar
 
     return df
 
@@ -20,6 +20,6 @@ def MOD17(df, LUE_max, VPD_max, VPD_min, T_max, T_min):
 
     df = calc_lue(df, LUE_max, VPD_max, VPD_min, T_max, T_min)
     df['par'] = df.srad * 0.45 * 60 * 60 * 24 * 0.000001
-    df['simulation'] = df.fpar * df.par * df.lue * 1000
+    df['simulation'] = df.fpar * df.par * df.lue
 
     return df

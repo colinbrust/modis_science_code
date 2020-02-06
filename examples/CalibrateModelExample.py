@@ -4,8 +4,10 @@ from scripts.LocalMod17 import MOD17
 import scripts.DatasetUtils as du
 from scripts.CalibrateParameters import CalibrateParameters
 
+
+# ---------- MOD17 Example ----------
 # Read in observation, necessary GEE model outputs, and file containing station groupings
-mod_df = pd.read_csv('data/MOD17/calb_test.csv')
+mod_df = pd.read_csv('data/MOD17/modeled_results.csv')
 obs_df = pd.read_csv('data/MOD17/template_example.csv')
 group_df = pd.read_csv('data/MOD17/group_template.csv')
 
@@ -23,8 +25,8 @@ params = {'LUE_max': {'min': 1.0, 'max': 3.0, 'guess': 2.0},
 
 # Misc arguments used in model calibration
 args = {'nChains': 5,
-        'nRuns': 1000,
-        'nFolds': 2,
+        'nRuns': 5000,
+        'nFolds': 5,
         'shuffle': True,
         'parameters': params,
         'filter': 'parVPD_max > parVPD_min & parT_max > parT_min'}
