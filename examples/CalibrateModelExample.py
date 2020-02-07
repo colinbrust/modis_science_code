@@ -1,8 +1,8 @@
 import pandas as pd
-from scripts.LocalMod16 import MOD16 as pd_MOD16
-from scripts.LocalMod17 import MOD17
-import scripts.DatasetUtils as du
-from scripts.CalibrateParameters import CalibrateParameters
+from msc.models.LocalMod17 import MOD17
+from msc.models.LocalMod16 import MOD16
+from msc.utils import DatasetUtils as du
+from msc.calval.CalibrateParameters import CalibrateParameters
 
 
 # ---------- MOD17 Example ----------

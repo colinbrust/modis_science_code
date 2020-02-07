@@ -1,7 +1,7 @@
 import pandas as pd
-from scripts.LocalMod16 import MOD16
-import scripts.DatasetUtils as du
-import scripts.EvaluateCalibration as ec
+from msc.models.LocalMod16 import MOD16
+from msc.calval import EvaluateCalibration as ec
+from msc.utils import DatasetUtils as du
 
 # read read in gee extracted data necessary to run model locally
 df = pd.read_csv('data/MOD16/modeled_results.csv')
