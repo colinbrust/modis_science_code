@@ -2,9 +2,7 @@
 
 ---
 
-Purpose
-=================
-A set of classes and functions to extract Google Earth Engine data for MOD16 and MOD17 and calibrate model parameters.
+A set of classes and functions to extract Google Earth Engine data for MOD16 and MOD17 and calibrate model parameters. Examples of how to run key functions are located in the 'Examples' directory. 
 
 Requirements
 =================
