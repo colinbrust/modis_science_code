@@ -1,4 +1,4 @@
-name: test_env
+name: gee
 channels:
   - conda-forge
   - anaconda
