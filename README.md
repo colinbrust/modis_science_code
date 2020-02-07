@@ -2,9 +2,7 @@
 
 ---
 
-Purpose
-=================
-A set of classes and functions to extract Google Earth Engine data for MOD16 and MOD17 and calibrate model parameters.
+A set of classes and functions to extract Google Earth Engine data for MOD16 and MOD17 and calibrate model parameters. Examples of how to run key functions are located in the 'Examples' directory. 
 
 Requirements
 =================
@@ -35,7 +33,7 @@ If you are using a Unix-like OS, you can paste the following in the command line
 If you are using a Windows OS, running the following in the command line will create a conda environment with necessary 
 packages:
     
-    git clone https://github.com/colinbrust/modis_science_code.git
+    	git clone https://github.com/colinbrust/modis_science_code.git
 	cd modis_science_code
 	conda env create -f environment.yml
 	conda activate gee
