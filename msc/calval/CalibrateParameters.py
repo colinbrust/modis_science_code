@@ -22,8 +22,8 @@ class CalibrateParameters(object):
             nRuns: The number of MCMC simulations to perform
             nFolds: The number of folds to use for k-fold cross validation
             shuffle: Boolean of whether model inputs should be randomly sampled for k-fold cross validation
-            filter: conditional filter for model parameters.  See examples/CalibrateModelExample.py for more details.
-            parameters: nested dict of parameters for use in model calibration. See examples/CalibrateModelExample.py
+            filter: conditional filter for model parameters.  See examples/02_CalibrateModelExample.py for more details.
+            parameters: nested dict of parameters for use in model calibration. See examples/02_CalibrateModelExample.py
              for more details.
         """
         self.df = df

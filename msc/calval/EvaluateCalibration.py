@@ -36,7 +36,7 @@ def get_optimal_params(kfold_dir: str, cond_filter: str = None) -> pd.DataFrame:
     """
     Function to find the optimal parameters across all training folds of the data.
     :param kfold_dir:  Directory that k-fold cross validation results are put into
-    :param cond_filter: Conditional filter for model parameters.  See examples/CalibrateModelExample.py for more
+    :param cond_filter: Conditional filter for model parameters.  See examples/02_CalibrateModelExample.py for more
         details.
     :return: pd.DataFrame that contains mean of optimal parameters across all folds for all groups
     """
@@ -61,7 +61,7 @@ def run_all_with_opt_params(df: pd.DataFrame, kfold_dir: str, model: Callable, c
     :param df: pd.DataFrame containing all necessary data to run model.
     :param kfold_dir: Directory that k-fold cross validation results are put into
     :param model: Model to run.
-    :param cond_filter: Conditional filter for model parameters.  See examples/CalibrateModelExample.py for more
+    :param cond_filter: Conditional filter for model parameters.  See examples/02_CalibrateModelExample.py for more
         details.
     :return:
     """
