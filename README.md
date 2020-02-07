@@ -16,6 +16,12 @@ Requirements
 The following install instructions will install the modis_science_code package and all additional requirements 
 (with the exception of git and conda).
 
+Data Formatting
+=================
+This package requires all input data to be in .csv format. Flux tower observation data should be formatted as the 'template_example.csv' files in data/MOD16 and data/MOD17 with columns named 'name', 'date', 'lat', 'lon', and 'target' correspoinding to flux tower names, date formatted as YYYY-MM-DD, tower latitude, tower longitude, and tower observation values (ET in the case of MOD16 and GPP in the case of MOD17), respectively.
+
+An input file similar to 'template_example.csv' is the only thing necessary to run and calibrate the models. However, if you want to calibrate across different groups (e.g. plant functional types), a file formatted as 'group_template.csv' is required that assigns a 'group' column to each unique tower site.
+
 Install
 =================
 I would recommend using a conda environment for code in this project so that it doesn't affect your base python install.
