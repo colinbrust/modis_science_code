@@ -24,7 +24,7 @@ An input file similar to 'template_example.csv' is the only thing necessary to r
 
 Install
 =================
-I would recommend using a conda environment for code in this project so that it doesn't affect your base python install.
+I would recommend using a conda environment so installing this package doesn't affect your base python install.
 
 If you are using a Unix-like OS, you can paste the following in the command line to create a conda environment with
  necessary packages:
