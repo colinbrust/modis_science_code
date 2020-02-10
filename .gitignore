@@ -1,1 +1,5 @@
 .idea/*
+/build/
+/dist/
+/msc/
+/msc.egg-info/

@@ -44,14 +44,6 @@ def mVPD_day(df, vpd_close, vpd_open):
     return df
 
 
-def mVPD_night(df, vpd_close, vpd_open):
-
-    df['mvpd'] = (vpd_close-df.vpd_night)/(vpd_close-vpd_open)
-    df['mvpd'] = np.clip(df.mvpd, 0, 1)
-
-    return df
-
-
 def mTemp_day(df, tmin_close, tmin_open):
 
     df['mtemp'] = (df.ta_day - tmin_close)/(tmin_open-tmin_close)
@@ -60,25 +52,30 @@ def mTemp_day(df, tmin_close, tmin_open):
     return df
 
 
-def mTemp_night(df, tmin_close, tmin_open):
+def mSM(df, sm_open, sm_close):
 
-    df['mtemp'] = (df.ta_night - tmin_close)/(tmin_open-tmin_close)
-    df['mtemp'] = np.clip(df.mtemp, 0, 1)
+    df['msm'] = (df.rzMean - sm_close)/(sm_open - sm_close)
+    df['msm'] = np.clip(df.msm, 0, 1)
 
     return df
 
 
 # daytime plant transpiration
-def LEtrans_day(df, Cl, gl_sh, vpd_open, vpd_close, tmin_open, tmin_close):
+def LEtrans_day(df, Cl, gl_sh, vpd_open, vpd_close, tmin_open, tmin_close, sm_open, sm_close):
 
     df['ta'] = ((df.ta_day+273.15)/293.15)**1.75
     dat = df
-    dat['rcorr']=1.0/((101300/dat.pa)*dat.ta)
+    dat['rcorr'] = 1.0/((101300/dat.pa)*dat.ta)
 
-    dat = mVPD_day(dat,vpd_close=vpd_close, vpd_open=vpd_open)
+    dat = mVPD_day(dat, vpd_close=vpd_close, vpd_open=vpd_open)
     dat = mTemp_day(dat, tmin_close=tmin_close, tmin_open=tmin_open)
 
-    dat['Gs1'] = Cl*dat.mvpd*dat.mtemp*dat.rcorr
+    if sm_open is not None and sm_close is not None:
+        dat = mSM(df, sm_open=sm_open, sm_close=sm_close)
+        dat['Gs1'] = Cl * dat.mvpd * dat.mtemp * dat.msm * dat.rcorr
+
+    else:
+        dat['Gs1'] = Cl*dat.mvpd*dat.mtemp*dat.rcorr
     dat['Gcu'] = dat.rcorr*0.00001
     dat['Gs2'] = gl_sh
     dat['Cc'] = dat.LAI*(1.0-dat.Fwet_day)*(dat.Gs2*(dat.Gs1+dat.Gcu))/(dat.Gs1+dat.Gs2+dat.Gcu)
@@ -204,22 +201,30 @@ def PLE_soil_day(df):
 
 
 # total soil LE
-def LEsoil_day(df):
+def LEsoil_day(df, sm_open, sm_close):
 
     df = PLE_soil_day(df)
     df = LEwetsoil_day(df)
-    df['fSM_day'] = (df.rh*0.01) ** (df.vpd_day/250.0)
+
+    if sm_open is not None and sm_close is not None:
+        df['fSM_day'] = df.fSM
+    else:
+        df['fSM_day'] = (df.rh*0.01) ** (df.vpd_day/250.0)
 
     df['LEsoil_day'] = (df.PLEsoil_day*df.fSM_day)+df.LEwetsoil_day
     return df
 
 
 # total soil LE
-def LEsoil_night(df):
+def LEsoil_night(df, sm_open, sm_close):
 
     df = PLE_soil_night(df)
     df = LEwetsoil_night(df)
-    df['fSM_night'] = (df.rh*0.01) ** (df.vpd_night/250.0)
+
+    if sm_open is not None and sm_close is not None:
+        df['fSM_night'] = df.fSM
+    else:
+        df['fSM_night'] = (df.rh*0.01) ** (df.vpd_night/250.0)
 
     df['LEsoil_night'] = (df.PLEsoil_night*df.fSM_night)+df.LEwetsoil_night
     return df
@@ -227,13 +232,14 @@ def LEsoil_night(df):
 
 # -------------------------------------------------Evapotranspiration------------------------------------------
 # calculate total ET
-def MOD16(df, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh, gl_e_wv, Cl, rbl_min, rbl_max):
+def MOD16(df, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh,
+          gl_e_wv, Cl, rbl_min, rbl_max, sm_open=None, sm_close=None):
 
     df = LEwetfun_day(df, gl_sh=gl_sh, gl_e_wv=gl_e_wv)
     df = LEwetfun_night(df, gl_sh=gl_sh, gl_e_wv=gl_e_wv)
 
     df = LEtrans_day(df, Cl=Cl, gl_sh=gl_sh, vpd_open=vpd_open, vpd_close=vpd_close,
-                     tmin_open=tmin_open, tmin_close=tmin_close)
+                     tmin_open=tmin_open, tmin_close=tmin_close, sm_open=sm_open, sm_close=sm_close)
     df = LEtrans_night(df, gl_sh=gl_sh)
     df = PLE_plant_day(df)
     df = PLE_plant_night(df)
@@ -247,8 +253,8 @@ def MOD16(df, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh, gl_e_wv, Cl, rb
     df = PLE_soil_day(df)
     df = PLE_soil_night(df)
 
-    df = LEsoil_day(df)
-    df = LEsoil_night(df)
+    df = LEsoil_day(df, sm_open=sm_open, sm_close=sm_close)
+    df = LEsoil_night(df, sm_open=sm_open, sm_close=sm_close)
 
     df = df.fillna(0)
 

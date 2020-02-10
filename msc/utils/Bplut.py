@@ -1,6 +1,34 @@
 import ee
-
+from typing import Dict
 ee.Initialize()
+
+
+def make_custom_bplut(ic: ee.ImageCollection,
+                      bp_dict: Dict[str, Dict[str, float]],
+                      mapping_dict: Dict[str, int]) -> ee.Image:
+
+    params = list(list(bp_dict.values())[0].keys())
+    pfts = list(bp_dict.keys())
+    dict_out = {}
+
+    for param in params:
+        fill_dict = {}
+        for pft in pfts:
+            fill_dict[mapping_dict[pft]] = bp_dict[pft][param]
+        dict_out[param] = fill_dict
+
+    spatial_bp = dict(zip(params, [ee.Image(0)] * len(params)))
+
+    for pft in mapping_dict.values():
+        for param in spatial_bp.keys():
+            spatial_bp[param] = spatial_bp[param].where(ic.eq(pft), dict_out[param][pft])
+
+    bp_out = ic.rename('landcover')
+
+    for param, img in spatial_bp.items():
+        bp_out = bp_out.addBands(img.rename(param))
+
+    return bp_out.updateMask(ic.neq(0))
 
 
 def make_pft_lc(roi, start, end):
@@ -144,10 +172,36 @@ def m16_bplut(roi, start, end):
                10: 50.0,
                11: 50.0}
 
+    SM_open = {1: 0.192,
+               2: 0.447,
+               3: 0.192,
+               4: 0.177,
+               5: 0.338,
+               6: 0.164,
+               7: 0.142,
+               8: 0.481,
+               9: 0.481,
+               10: 0.245,
+               11: 0.250}
+
+    SM_close = {1: 0.083,
+                2: 0.073,
+                3: 0.083,
+                4: 0.020,
+                5: 0.051,
+                6: 0.016,
+                7: 0.108,
+                8: 0.146,
+                9: 0.146,
+                10: 0.019,
+                11: 0.050}
+
     tminclose = ee.Image(0)
     tminopen = ee.Image(0)
     vpdclose = ee.Image(0)
     vpdopen = ee.Image(0)
+    smclose = ee.Image(0)
+    smopen = ee.Image(0)
     gl_sh = ee.Image(0)
     gl_e_wv = ee.Image(0)
     cl = ee.Image(0)
@@ -159,6 +213,8 @@ def m16_bplut(roi, start, end):
         tminopen = tminopen.where(lc.eq(i), Tminopen[i])
         vpdclose = vpdclose.where(lc.eq(i), VPDclose[i])
         vpdopen = vpdopen.where(lc.eq(i), VPDopen[i])
+        smclose = smclose.where(lc.eq(i), SM_close[i])
+        smopen = smopen.where(lc.eq(i), SM_open[i])
         gl_sh = gl_sh.where(lc.eq(i), Gl_sh[i])
         gl_e_wv = gl_e_wv.where(lc.eq(i), Gl_e_wv[i])
         cl = cl.where(lc.eq(i), CL[i])
@@ -169,14 +225,16 @@ def m16_bplut(roi, start, end):
         .addBands(tminopen) \
         .addBands(vpdclose) \
         .addBands(vpdopen) \
+        .addBands(smopen) \
+        .addBands(smclose) \
         .addBands(gl_sh) \
         .addBands(gl_e_wv) \
         .addBands(cl) \
         .addBands(rblmin) \
         .addBands(rblmax) \
-        .select([0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-                ['landcover', 'Tminclose', 'Tminopen', 'VPDclose', 'VPDopen',
-                 'gl_sh', 'gl_e_wv', 'Cl', 'RBL_min', 'RBL_max'])
+        .select([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                ['landcover', 'tmin_close', 'tmin_open', 'vpd_close', 'vpd_open', 'sm_open', 'sm_close',
+                 'gl_sh', 'gl_e_wv', 'Cl', 'rbl_min', 'rbl_max'])
 
     return bplut.updateMask(pft_lc.neq(0))
 
