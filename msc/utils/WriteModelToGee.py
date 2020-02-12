@@ -7,11 +7,11 @@ import subprocess as sp
 import time
 from msc.utils.CLIUtils import task_running
 
-ee.Initialize()
-
 
 class WriteModelToGee(object):
-
+    """
+    Class that runs a model across a list of tiles, then mosaics the tiles and aggregates the model results.
+    """
     def __init__(self, model: Callable, year: int, bounds: List, unq_id: str, asset_path: str, **kwargs: Dict) -> None:
         """
         :param model: Model to be run across all 'bounds' for 'year'.
@@ -31,11 +31,13 @@ class WriteModelToGee(object):
         self.unq_id = unq_id
         self.asset_path = asset_path
         self.out_name = os.path.join(asset_path, self.unq_id+'-'+str(self.year)).replace('\\', '/')
-        self.asset_names = self._make_asset_names()
         self.ee_loc = shutil.which('earthengine')
-
+        self.asset_names = self._make_asset_names()
 
     def _make_asset_names(self) -> List:
+        """
+        :return: List of names for intermediate mosaic tiles
+        """
         check = sp.check_output([self.ee_loc, '--no-use_cloud_api', 'ls', self.asset_path])
         if check.decode() == "No such folder or collection: '{}'.\n".format(self.asset_path):
             sp.call([self.ee_loc, '--no-use_cloud_api', 'create', 'folder', self.asset_path])
@@ -44,8 +46,10 @@ class WriteModelToGee(object):
                                                                              [self.unq_id+'-intermediate_' + str(z) for
                                                                               z in range(len(self.bounds))]))]
 
-    def _export_tiled_images(self):
-
+    def _export_tiled_images(self) -> None:
+        """
+        :return: None, begins tasks for running a model across all tiles
+        """
         for i in range(len(self.bounds)):
             print('Starting {} for {}'.format('Intermediate Tile ' + str(i), self.unq_id))
             roi = ee.Geometry.Polygon(self.bounds[i]).bounds()
@@ -66,11 +70,16 @@ class WriteModelToGee(object):
             task.start()
 
     @staticmethod
-    def mosaic_tiles(asset_path, unq_id, roi=[[[-126.74, 50.06],
-                                               [-126.74, 22.75],
-                                               [-65.74, 22.75],
-                                               [-65.74, 50.06]]]):
-
+    def mosaic_tiles(asset_path: str, unq_id: str, roi: List = [[[-126.74, 50.06],
+                                                                 [-126.74, 22.75],
+                                                                 [-65.74, 22.75],
+                                                                 [-65.74, 50.06]]]) -> None:
+        """
+        :param asset_path: Path to asset imageCollection or folder in earthengine where assets will be written.
+        :param unq_id: Unique name identifier for the final mosaiced
+        :param roi: Nested list of [lon, lat] that define the bounds of the image to export.
+        :return: None, begins EarthEngine task of exporting mosaic to asset.
+        """
         check = sp.check_output([shutil.which('earthengine'),
                                  '--no-use_cloud_api', 'ls', asset_path]).decode().split('\n')
         regex = re.compile(unq_id)
@@ -95,20 +104,34 @@ class WriteModelToGee(object):
                                   [-126.74, 22.75],
                                   [-65.74, 22.75],
                                   [-65.74, 50.06]]]):
+        """
+        Class method that implements the static 'mosaic_tiles' method.
+        :param roi:
+        :return:
+        """
         self.mosaic_tiles(self.asset_path, self.unq_id, roi)
 
     def _rm_intermediates(self):
-
+        """
+        :return: None, removes all intermediate tiles that were used to create mosaic.
+        """
         for asset in self.asset_names:
             sp.call([self.ee_loc, '--no-use_cloud_api', 'rm', asset])
 
-    def run_model(self, wait_time, roi=[[[-126.74, 50.06],
-                                         [-126.74, 22.75],
-                                         [-65.74, 22.75],
-                                         [-65.74, 50.06]]]):
+    def run_model(self, wait_time: int, roi: List = [[[-126.74, 50.06],
+                                                      [-126.74, 22.75],
+                                                      [-65.74, 22.75],
+                                                      [-65.74, 50.06]]]):
+        """
+        Runs all tiles across domain, mosaics them into one continuous image, then removes intermediate tiles
+        :param wait_time: Time in seconds to wait between checking whether or not any tasks are running.
+        :param roi: Nested list of 4 [lon, lat] locations representing the bounds of the region to run the model. The
+            default is the CONUS domain.
+        :return:
+        """
         self._export_tiled_images()
         while task_running(self.ee_loc):
-            print('Cannot mosaic tiles because some are still running.'
+            print('Cannot mosaic tiles because some intermediate tasks are still running.'
                   ' Waiting {} seconds and will try again.'.format(wait_time))
             time.sleep(wait_time)
 
@@ -117,3 +140,5 @@ class WriteModelToGee(object):
             print('Mosaicing tiles... Waiting {} seconds and will try '
                   'removing intermediate tiles again.'.format(wait_time))
             time.sleep(wait_time)
+
+        self._rm_intermediates()

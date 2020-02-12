@@ -1,9 +1,8 @@
 import ee
 from typing import Dict
-ee.Initialize()
 
 
-def make_custom_bplut(ic: ee.ImageCollection,
+def make_custom_bplut(img: ee.Image,
                       bp_dict: Dict[str, Dict[str, float]],
                       mapping_dict: Dict[str, int]) -> ee.Image:
 
@@ -21,14 +20,14 @@ def make_custom_bplut(ic: ee.ImageCollection,
 
     for pft in mapping_dict.values():
         for param in spatial_bp.keys():
-            spatial_bp[param] = spatial_bp[param].where(ic.eq(pft), dict_out[param][pft])
+            spatial_bp[param] = spatial_bp[param].where(img.eq(pft), dict_out[param][pft])
 
-    bp_out = ic.rename('landcover')
+    bp_out = img.rename('landcover')
 
-    for param, img in spatial_bp.items():
-        bp_out = bp_out.addBands(img.rename(param))
+    for param, img2 in spatial_bp.items():
+        bp_out = bp_out.addBands(img2.rename(param))
 
-    return bp_out.updateMask(ic.neq(0))
+    return bp_out.updateMask(img.neq(0))
 
 
 def make_pft_lc(roi, start, end):

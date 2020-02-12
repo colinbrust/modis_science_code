@@ -1,21 +1,22 @@
 import ee
 from msc.utils import Bplut as bp, GetModisFpar as fp
 
-ee.Initialize()
 
 # Global constants
 time = 'system:time_start'
 day = (24 * 60 * 60 * 1000)
 
 
-def MOD16(roi, year, meteorology, daylength, elev, smap_sm=None, bplut=None):
+def MOD16(roi, year, meteorology, daylength, elev, LAI=None, Fc=None, smap_sm=None, bplut=None):
     start = ee.Date.fromYMD(year, 1, 1)
     end = ee.Date.fromYMD(year + 1, 1, 1)
 
     fp_lai = fp.modis_fpar_lai(roi, year)
 
-    LAI = ee.ImageCollection(fp_lai.get('LAI'))
-    Fc = ee.ImageCollection(fp_lai.get('FPAR'))
+    if LAI is None:
+        LAI = ee.ImageCollection(fp_lai.get('LAI'))
+    if Fc is None:
+        Fc = ee.ImageCollection(fp_lai.get('FPAR'))
 
     proj = ee.Image(LAI.first()).projection()
 
@@ -113,12 +114,13 @@ def MOD16(roi, year, meteorology, daylength, elev, smap_sm=None, bplut=None):
     meteo = dataJoin2(meteo, meteorology)
     meteo = dataJoin2(meteo, Fc)
     meteo = dataJoin2(meteo, LAI)
-    meteo = meteo.map(lambda img: img.clip(roi))
 
     if smap_sm is not None:
+        smap_sm = smap_sm.map(match_proj)
+        meteo = dataJoin2(meteo, smap_sm)
 
-        meteo = dataJoin2(meteo, smap_sm[0])
-        meteo = dataJoin2(meteo, smap_sm[1])
+    meteo = meteo.map(lambda img: img.clip(roi))
+    meteo = meteo.filterDate(start, end)
 
     # calculate annual mean daily temperature in degree C and add to bplut for soil heat flux calculations
     Tannual = meteo.select('Tavg').mean().rename('Tannual')
@@ -640,7 +642,7 @@ def MOD16(roi, year, meteorology, daylength, elev, smap_sm=None, bplut=None):
             .set({'Date': doy})
 
         if smap_sm is not None:
-            img_out = ee.Image(img_out).addBands(sm_rz).addBands(rew)
+            img_out = ee.Image(img_out).addBands(sm_rz).addBands(rew).addBands(img.select('surfMean'))
 
         return ee.Image(img_out)
 

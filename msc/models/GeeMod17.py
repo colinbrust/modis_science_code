@@ -1,8 +1,6 @@
 import ee
 from msc.utils import Bplut as bp, GetModisFpar as fp
 
-ee.Initialize()
-
 
 def MOD17(roi, year, meteorology):
     time = 'system:time_start'

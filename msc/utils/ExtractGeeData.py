@@ -3,7 +3,6 @@ import os
 import pandas as pd
 from typing import Callable, TypeVar, Generic
 
-ee.Initialize()
 # Area in meters to buffer around each point and run the model at
 BUFFER_SIZE = 500
 T = TypeVar('T')
