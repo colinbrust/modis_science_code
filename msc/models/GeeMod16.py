@@ -7,16 +7,56 @@ time = 'system:time_start'
 day = (24 * 60 * 60 * 1000)
 
 
-def MOD16(roi, year, meteorology, daylength, elev, LAI=None, Fc=None, smap_sm=None, bplut=None):
+def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
+    """
+    :param roi: ee.Geometry of region to run the model across
+    :param year: Year to run the model in
+    :param kwargs: Additional arguments including:
+        meteorology: ee.ImageCollection, meteorology containing bands named 'vpd', 'srad', 'tmmn', 'tmmx',
+            'rmin', 'rmax', 'vpd'. ***Required***
+        daylength: ee.ImageCollection, gridded product giving daylength in seconds ***Required***
+        elev: ee.Image, elevation in meters ***Required***
+        LAI: ee.ImageCollection of LAI,
+        Fc: ee.ImageCollection of FPAR/Fc,
+        smap_sm: ee.ImageCollection with 'rzMean' and 'fSM' bands returned from msc.utils.Smap.get_smap.
+        bplut: ee.Image of bplut params returned from a function in msc.utils.Bplut
+        all_variables: bool, whether to export just ET or all intermediate variables as well.
+    :return: ee.ImageCollection containing modeled evapotranspiration
+    """
+    try:
+        meteorology = ee.ImageCollection(kwargs.pop('meteorology'))
+        daylength = kwargs.pop('daylength')
+        elev = kwargs.pop('elev')
+    except KeyError as e:
+        print('Missing required {} input. Rerun model including this argument.'.format(e))
+
     start = ee.Date.fromYMD(year, 1, 1)
     end = ee.Date.fromYMD(year + 1, 1, 1)
 
-    fp_lai = fp.modis_fpar_lai(roi, year)
+    # Function to join the daily daylength, albedo and meteorology data together
+    def dataJoin(left, right):
+        filt = ee.Filter.equals(
+            leftField=time,
+            rightField=time)
 
-    if LAI is None:
-        LAI = ee.ImageCollection(fp_lai.get('LAI'))
-    if Fc is None:
-        Fc = ee.ImageCollection(fp_lai.get('FPAR'))
+        join = ee.Join.saveBest(
+            matchKey='match',
+            measureKey='delta_t')
+
+        return ee.ImageCollection(join.apply(left, right, filt)) \
+            .map(lambda img: img.addBands(img.get('match')))
+
+    if 'LAI' in kwargs and 'Fc' in kwargs:
+        fp_lai = dataJoin(kwargs.pop('LAI'), kwargs.pop('Fc'))
+        fp_lai = fp.modis_fpar_lai(roi, year, fp_lai)
+    elif ('LAI' in kwargs and 'Fc' not in kwargs) or ('LAI' not in kwargs and 'Fc' in kwargs):
+        raise ValueError('If either LAI or Fc is used as a kwarg, the other must also be included as an argument.\n'
+                         'Please include both LAI and Fc.')
+    else:
+        fp_lai = fp.modis_fpar_lai(roi, year)
+
+    LAI = ee.ImageCollection(fp_lai.get('LAI'))
+    Fc = ee.ImageCollection(fp_lai.get('FPAR'))
 
     proj = ee.Image(LAI.first()).projection()
 
@@ -30,7 +70,7 @@ def MOD16(roi, year, meteorology, daylength, elev, LAI=None, Fc=None, smap_sm=No
         return img
 
     # Import code that contains a spatial BPLUT
-    bplut = bp.m16_bplut(roi, start, end) if bplut is None else bplut
+    bplut = bp.m16_bplut(roi, start, end) if 'bplut' not in kwargs else kwargs.pop('bplut')
 
     # Filter meteorological data
     meteorology = meteorology \
@@ -83,18 +123,6 @@ def MOD16(roi, year, meteorology, daylength, elev, LAI=None, Fc=None, smap_sm=No
 
     albedo_interp = albedo.map(albedo_fun)
 
-    # Function to join the daily daylength, albedo and meteorology data together
-    def dataJoin(left, right):
-        filt = ee.Filter.equals(
-            leftField=time,
-            rightField=time)
-
-        join = ee.Join.saveBest(
-            matchKey='match',
-            measureKey='delta_t')
-
-        return ee.ImageCollection(join.apply(left, right, filt)) \
-            .map(lambda img: img.addBands(img.get('match')))
 
     def dataJoin2(left, right):
         filt = ee.Filter.maxDifference(
@@ -115,7 +143,8 @@ def MOD16(roi, year, meteorology, daylength, elev, LAI=None, Fc=None, smap_sm=No
     meteo = dataJoin2(meteo, Fc)
     meteo = dataJoin2(meteo, LAI)
 
-    if smap_sm is not None:
+    if 'smap_sm' in kwargs:
+        smap_sm = kwargs['smap_sm']
         smap_sm = smap_sm.map(match_proj)
         meteo = dataJoin2(meteo, smap_sm)
 
@@ -382,7 +411,7 @@ def MOD16(roi, year, meteorology, daylength, elev, LAI=None, Fc=None, smap_sm=No
         })
         mvpd = vpd_scalar(bplut, vpd)
         mT = t_scalar(bplut, temp)
-        if smap_sm is not None:
+        if 'smap_sm' in kwargs:
             mSM = sm_scalar(bplut, sm)
             Gs1 = bplut.expression('Cl*mvpd*mT*mSM*rcorr', {
                 'Cl': bplut.select('Cl'),
@@ -505,7 +534,7 @@ def MOD16(roi, year, meteorology, daylength, elev, LAI=None, Fc=None, smap_sm=No
     # Function to calculate latent heat flux for non-saturated soil
     def calc_total_soil_evap(rh, vpd, LEwetsoil, PLEsoil, rew):
         
-        if smap_sm is not None:
+        if 'smap_sm' in kwargs:
             return PLEsoil.multiply(rew).add(LEwetsoil)
         else:
             fSM = rh.expression('pow((rh*0.01),(vpd/beta))', {
@@ -537,7 +566,7 @@ def MOD16(roi, year, meteorology, daylength, elev, LAI=None, Fc=None, smap_sm=No
 
         doy = ee.Date(img.get('system:time_start'))
 
-        sm_rz, rew = (img.select('rzMean'), img.select('fSM')) if smap_sm is not None else (ee.Image(0), ee.Image(0))
+        sm_rz, rew = (img.select('rzMean'), img.select('fSM')) if 'smap_sm' in kwargs else (ee.Image(0), ee.Image(0))
 
         # calculate each parameter values in day and night, respectively
         Rn_day = calc_rn(temp=ta_day, albedo=albedo, swrad=swrad, daylength=daylength)  # J/day/m2
@@ -641,9 +670,14 @@ def MOD16(roi, year, meteorology, daylength, elev, LAI=None, Fc=None, smap_sm=No
             .copyProperties(img, [time]) \
             .set({'Date': doy})
 
-        if smap_sm is not None:
+        if 'smap_sm' in kwargs:
             img_out = ee.Image(img_out).addBands(sm_rz).addBands(rew).addBands(img.select('surfMean'))
 
         return ee.Image(img_out)
 
-    return meteo.map(calc_et)
+    et_out = meteo.map(calc_et)
+
+    all_variables = kwargs.pop('all_variables') if 'all_variables' in kwargs else False
+    if not all_variables:
+        return et_out.select('ET')
+    return et_out

@@ -60,10 +60,10 @@ mapping_dict = {'ENF': 1, 'EBF': 2, 'DNF': 3, 'DBF': 4, 'MF': 5, 'CSH': 6,
 
 bplut = make_custom_bplut(lc, mapping_dict=mapping_dict, bp_dict=bp_dict)
 
+kwargs = {'meteorology': meteo, 'daylength': dayl, 'elev': elev, 'smap_sm': smap, 'bplut': bplut}
 # Make instance of WriteModelToGee class
 runner = WriteModelToGee(model=MOD16, year=2015, bounds=bounds, unq_id='this_is_a_test',
-                         asset_path='users/colinbrust/asdf', meteorology=meteo, daylength=dayl, elev=elev,
-                         smap_sm=smap, bplut=bplut)
+                         asset_path='users/colinbrust/asdf', **kwargs)
 
 # Run the model, check for progress every 5 minutes
 runner.run_model(wait_time=300)

@@ -27,7 +27,7 @@ def make_custom_bplut(img: ee.Image,
     for param, img2 in spatial_bp.items():
         bp_out = bp_out.addBands(img2.rename(param))
 
-    return bp_out.updateMask(img.neq(0))
+    return ee.Image(bp_out.updateMask(img.neq(0))).copyProperties(img, ['system:time_start'])
 
 
 def make_pft_lc(roi, start, end):

@@ -7,7 +7,7 @@ day = (24 * 60 * 60 * 1000)
 
 # Converts 4-day FPAR product to a daily timestep.
 # Also mask out problem pixels and temporally gap fill.
-def modis_fpar_lai(roi, year):
+def modis_fpar_lai(roi, year, fpar_climatology=None):
     start = ee.Date.fromYMD(year, 1, 1)
     end = ee.Date.fromYMD(year + 1, 1, 1)
     tempwin = 4  # day difference between FPAR images
@@ -23,16 +23,18 @@ def modis_fpar_lai(roi, year):
         return img_masked
 
     # Mask out problem pixels
-    fuseEVI = ee.ImageCollection('MODIS/006/MCD15A3H') \
-        .filterDate(start.advance(-1, 'month'), end) \
-        .map(lambda img: img.clip(roi)) \
-        .map(qMask)
+    if fpar_climatology is None:
 
-    # Fill gaps with temporally nearest valid pixel to create continuous image.
-    fuseEVI = gf(fuseEVI) \
-        .filterDate(start, end)
+        fuseEVI = ee.ImageCollection('MODIS/006/MCD15A3H') \
+            .filterDate(start.advance(-1, 'month'), end) \
+            .map(lambda img: img.clip(roi)) \
+            .map(qMask)
 
-    proj = ee.Image(fuseEVI.first()).projection()
+        # Fill gaps with temporally nearest valid pixel to create continuous image.
+        fuseEVI = gf(fuseEVI) \
+            .filterDate(start, end)
+    else:
+        fuseEVI = fpar_climatology
 
     def make_daily_coll(tup):
         return ee.Image.constant(tup).toInt64() \
