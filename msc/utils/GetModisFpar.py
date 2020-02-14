@@ -23,7 +23,7 @@ def modis_fpar_lai(roi, year, fpar_climatology=None):
         return img_masked
 
     # Mask out problem pixels
-    if fpar_climatology is None:
+    if fpar_climatology is None or fpar_climatology.size().getInfo() > 366:
 
         fuseEVI = ee.ImageCollection('MODIS/006/MCD15A3H') \
             .filterDate(start.advance(-1, 'month'), end) \

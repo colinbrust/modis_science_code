@@ -21,7 +21,7 @@ class MyTestCase(unittest.TestCase):
                                   out_dir='./tmp',
                                   meteorology=meteo)
 
-        self.m16 = ExtractGeeData(template='../data/MOD17/template_example.csv',
+        self.m16 = ExtractGeeData(template='../data/MOD16/template_example.csv',
                                   model=MOD16,
                                   out_dir='./tmp',
                                   meteorology=meteo,

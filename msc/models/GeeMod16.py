@@ -71,6 +71,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
     # Import code that contains a spatial BPLUT
     bplut = bp.m16_bplut(roi, start, end) if 'bplut' not in kwargs else kwargs.pop('bplut')
+    bplut = ee.Image(bplut)
 
     # Filter meteorological data
     meteorology = meteorology \
@@ -122,7 +123,6 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             .copyProperties(img, ['system:time_end'])
 
     albedo_interp = albedo.map(albedo_fun)
-
 
     def dataJoin2(left, right):
         filt = ee.Filter.maxDifference(
