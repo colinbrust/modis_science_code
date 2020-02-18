@@ -18,13 +18,13 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         elev: ee.Image, elevation in meters ***Required***
         LAI: ee.ImageCollection of LAI,
         Fc: ee.ImageCollection of FPAR/Fc,
-        smap_sm: ee.ImageCollection with 'rzMean' and 'fSM' bands returned from msc.utils.Smap.get_smap.
+        smapsm: ee.ImageCollection with 'rzMean' and 'fSM' bands returned from msc.utils.Smap.get_smap.
         bplut: ee.Image of bplut params returned from a function in msc.utils.Bplut
         all_variables: bool, whether to export just ET or all intermediate variables as well.
     :return: ee.ImageCollection containing modeled evapotranspiration
     """
     try:
-        meteorology = ee.ImageCollection(kwargs.pop('meteorology'))
+        meteorology = kwargs.pop('meteorology')
         daylength = kwargs.pop('daylength')
         elev = kwargs.pop('elev')
     except KeyError as e:
@@ -33,9 +33,9 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     start = ee.Date.fromYMD(year, 1, 1)
     end = ee.Date.fromYMD(year + 1, 1, 1)
 
-    # Function to join the daily daylength, albedo and meteorology data together
-    def dataJoin(left, right):
-        filt = ee.Filter.equals(
+    def dataJoin2(left, right):
+        filt = ee.Filter.maxDifference(
+            difference=day,
             leftField=time,
             rightField=time)
 
@@ -47,7 +47,11 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             .map(lambda img: img.addBands(img.get('match')))
 
     if 'LAI' in kwargs and 'Fc' in kwargs:
-        fp_lai = dataJoin(kwargs.pop('LAI'), kwargs.pop('Fc'))
+
+        LAI = kwargs.pop('LAI')
+        Fc = kwargs.pop('Fc')
+
+        fp_lai = dataJoin2(LAI, Fc)
         fp_lai = fp.modis_fpar_lai(roi, year, fp_lai)
     elif ('LAI' in kwargs and 'Fc' not in kwargs) or ('LAI' not in kwargs and 'Fc' in kwargs):
         raise ValueError('If either LAI or Fc is used as a kwarg, the other must also be included as an argument.\n'
@@ -124,9 +128,9 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
     albedo_interp = albedo.map(albedo_fun)
 
-    def dataJoin2(left, right):
-        filt = ee.Filter.maxDifference(
-            difference=day,
+    # Function to join the daily daylength, albedo and meteorology data together
+    def dataJoin(left, right):
+        filt = ee.Filter.equals(
             leftField=time,
             rightField=time)
 
@@ -140,15 +144,19 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     # Group all input data into one imageCollection
     meteo = dataJoin(daylength, albedo_interp)
     meteo = dataJoin2(meteo, meteorology)
+    a = meteo.first().getInfo()
     meteo = dataJoin2(meteo, Fc)
+    b = meteo.first().getInfo()
     meteo = dataJoin2(meteo, LAI)
+    c = meteo.first().getInfo()
 
-    if 'smap_sm' in kwargs:
-        smap_sm = kwargs['smap_sm']
+    if 'smapsm' in kwargs:
+        smap_sm = kwargs['smapsm']
         smap_sm = smap_sm.map(match_proj)
         meteo = dataJoin2(meteo, smap_sm)
 
     meteo = meteo.map(lambda img: img.clip(roi))
+    d = meteo.first().getInfo()
     meteo = meteo.filterDate(start, end)
 
     # calculate annual mean daily temperature in degree C and add to bplut for soil heat flux calculations
@@ -411,7 +419,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         })
         mvpd = vpd_scalar(bplut, vpd)
         mT = t_scalar(bplut, temp)
-        if 'smap_sm' in kwargs:
+        if 'smapsm' in kwargs:
             mSM = sm_scalar(bplut, sm)
             Gs1 = bplut.expression('Cl*mvpd*mT*mSM*rcorr', {
                 'Cl': bplut.select('Cl'),
@@ -534,7 +542,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     # Function to calculate latent heat flux for non-saturated soil
     def calc_total_soil_evap(rh, vpd, LEwetsoil, PLEsoil, rew):
         
-        if 'smap_sm' in kwargs:
+        if 'smapsm' in kwargs:
             return PLEsoil.multiply(rew).add(LEwetsoil)
         else:
             fSM = rh.expression('pow((rh*0.01),(vpd/beta))', {
@@ -566,7 +574,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
         doy = ee.Date(img.get('system:time_start'))
 
-        sm_rz, rew = (img.select('rzMean'), img.select('fSM')) if 'smap_sm' in kwargs else (ee.Image(0), ee.Image(0))
+        sm_rz, rew = (img.select('rzMean'), img.select('fSM')) if 'smapsm' in kwargs else (ee.Image(0), ee.Image(0))
 
         # calculate each parameter values in day and night, respectively
         Rn_day = calc_rn(temp=ta_day, albedo=albedo, swrad=swrad, daylength=daylength)  # J/day/m2
@@ -576,6 +584,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
                                         tnight=ta_night)
         Gsoil_night = calc_soil_heat_flux(bplut=bplut, Rn=Rn_night, temp=ta_night, daylength=nightlength, tday=ta_day,
                                           tnight=ta_night)
+
 
         #  following the User Guide (2017 version)
         G_day = Gsoil_day.multiply(ee.Image(1).subtract(Fc))
@@ -670,7 +679,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             .copyProperties(img, [time]) \
             .set({'Date': doy})
 
-        if 'smap_sm' in kwargs:
+        if 'smapsm' in kwargs:
             img_out = ee.Image(img_out).addBands(sm_rz).addBands(rew).addBands(img.select('surfMean'))
 
         return ee.Image(img_out)

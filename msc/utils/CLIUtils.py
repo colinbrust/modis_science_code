@@ -1,5 +1,8 @@
 import subprocess as sp
+import os
+import ee
 
+ee.Initialize()
 
 def stop_all_tasks(ee_loc: str = 'earthengine') -> None:
     """
@@ -29,3 +32,32 @@ def task_running(ee_loc: str = 'earthengine') -> bool:
         return True
     else:
         return False
+
+
+def export_folder_to_drive(f_dir: str, out_dir: str, ee_loc: str = 'earthengine', scale: int = 500) -> None:
+    """
+    Exports folder of ee assets or a single asset to a google drive folder
+    :param f_dir: Directory where assets are located
+    :param out_dir: Google drive folder to export assets to
+    :param ee_loc: string of path location of earthengine executable
+    :param scale: Spatial scale to export image at
+    :return: None, exports images to google drive
+    """
+    assets = sp.check_output([ee_loc, '--no-use_cloud_api', 'ls', f_dir]).decode().split('\n')
+
+    for asset in assets:
+
+        out = ee.Image(asset)
+
+        task = ee.batch.Export.image.toDrive(
+            image=out,
+            description=os.path.basename(asset),
+            folder=out_dir,
+            scale=scale,
+            maxPixels=1e13,
+            region=out.geometry().bounds().getInfo()['coordinates'],
+            fileNamePrefix=os.path.basename(asset)
+        )
+
+        print('Started task {}'.format(os.path.basename(asset)))
+        task.start()

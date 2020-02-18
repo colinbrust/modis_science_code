@@ -8,6 +8,7 @@ day = (24 * 60 * 60 * 1000)
 # Converts 4-day FPAR product to a daily timestep.
 # Also mask out problem pixels and temporally gap fill.
 def modis_fpar_lai(roi, year, fpar_climatology=None):
+
     start = ee.Date.fromYMD(year, 1, 1)
     end = ee.Date.fromYMD(year + 1, 1, 1)
     tempwin = 4  # day difference between FPAR images
@@ -34,7 +35,7 @@ def modis_fpar_lai(roi, year, fpar_climatology=None):
         fuseEVI = gf(fuseEVI) \
             .filterDate(start, end)
     else:
-        fuseEVI = fpar_climatology
+        fuseEVI = fpar_climatology.filterDate(start, end)
 
     def make_daily_coll(tup):
         return ee.Image.constant(tup).toInt64() \
@@ -82,6 +83,7 @@ def modis_fpar_lai(roi, year, fpar_climatology=None):
 
             maxDD = ee.Image(filledDate.filterDate(end).first())
             # calculate the coefficent
+
             angularCoeff = (maxDD.select(band).subtract(minDD.select(band))).divide(tempdif)
             q = ((maxDD.select('time').multiply(minDD.select(band))).subtract(
                 minDD.select('time').multiply(maxDD.select(band)))).divide(tempdif)
@@ -107,7 +109,6 @@ def modis_fpar_lai(roi, year, fpar_climatology=None):
 
     # compute daily interpolations of LAI and Fpar
     LAI = ic_interp(imgCll, 'Lai').map(lambda img: img.rename('LAI').copyProperties(img, ['system:time_start']))
-
     Fc = ic_interp(imgCll, 'Fpar').map(
         lambda img: img.multiply(0.01).rename('Fc').copyProperties(img, ['system:time_start']))
 
