@@ -144,13 +144,11 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     # Group all input data into one imageCollection
     meteo = dataJoin(daylength, albedo_interp)
     meteo = dataJoin2(meteo, meteorology)
-    a = meteo.first().getInfo()
     meteo = dataJoin2(meteo, Fc)
-    b = meteo.first().getInfo()
     meteo = dataJoin2(meteo, LAI)
-    c = meteo.first().getInfo()
 
     if 'smapsm' in kwargs:
+        print('Using SMAP soil moisture')
         smap_sm = kwargs['smapsm']
         smap_sm = smap_sm.map(match_proj)
         meteo = dataJoin2(meteo, smap_sm)
