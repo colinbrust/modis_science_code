@@ -4,6 +4,7 @@ import ee
 
 ee.Initialize()
 
+
 def stop_all_tasks(ee_loc: str = 'earthengine') -> None:
     """
     :param ee_loc: string of path location of earthengine executable.

@@ -9,11 +9,11 @@ from msc.calval.CalibrateParameters import CalibrateParameters
 # Read in observation, necessary GEE model outputs, and file containing station groupings
 mod_df = pd.read_csv('data/MOD17/modeled_results.csv')
 obs_df = pd.read_csv('data/MOD17/template_example.csv')
-group_df = pd.read_csv('data/MOD17/group_template.csv')
+# group_df = pd.read_csv('data/MOD17/group_template.csv')
 
 # Join all dataframes and filter missing observations
 df = du.merge_model_with_obs(mod_df, obs_df)
-df = du.join_with_groups(df, group_df)
+df = du.join_with_groups(df, None)
 df = du.filter_nan_obs(df)
 
 # Nested dict defining parameter space for MCMC calibration process

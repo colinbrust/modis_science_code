@@ -60,3 +60,15 @@ def get_smap(start, end):
     fSM = smap.filterDate(start, end).map(lambda x: fSM_calc(x, surf_min, surf_max))
 
     return fSM
+
+def get_smap_l4(start, end):
+
+    smap = merged()
+
+    surf_min = smap.select('surfMean').min()
+    surf_max = smap.select('surfMean').max()
+
+    # smRz = smap.filterDate(start, end).select('rzMean')
+    fSM = smap.filterDate(start, end).map(lambda x: fSM_calc(x, surf_min, surf_max))
+
+    return fSM
