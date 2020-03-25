@@ -20,6 +20,8 @@ class ExtractGeeData(object):
 
         :param model: A function that runs the desired model at the site locations specified in the template.
 
+        :param out_dir: Directory where data will be written to
+
         :param kwargs: Keyword arguments for the model that can't be derived from the template file. For example, to run
         MOD16, daylength, elevation, and meteorology imageCollections would be necessary, as the roi and year arguments
         can be taken from the template file.

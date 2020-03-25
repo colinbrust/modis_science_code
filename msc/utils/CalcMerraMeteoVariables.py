@@ -80,5 +80,8 @@ def add_all_bands(img):
     img = img.select(['T2MMAX', 'T2MMIN', 'SWGDN', 'rmin', 'rmax', 'vpd'],
                   ['tmmx', 'tmmn', 'srad', 'rmin', 'rmax', 'vpd'])
     return img
-  
+
+
+def calc_meteo(ic):
+    return ic.map(add_all_bands)
 
