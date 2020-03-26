@@ -1,5 +1,4 @@
 import ee
-
 ee.Initialize()
 
 
@@ -15,7 +14,7 @@ def calc_rh(img, temp_band, band_name):
 
 
 def calc_ravg(img):
-    ravg = img.expression('((rmin+rmax)/2)*0.01', {
+    ravg = img.expression('((rmin+rmax)/2)*0.01',{
         'rmin': img.select('rmin'),
         'rmax': img.select('rmax'),
     }).rename('ravg').copyProperties(img, ['system:time_start'])
@@ -35,10 +34,10 @@ def calc_tavg(img):
 
 
 def calc_sat_vp(img, t_band, band_name):
-    sat_vp = img.expression('0.6108 * exp((17.27 * t) / (t + 237.3))', {
+    sat_vp = img.expression('0.6108 * exp((17.27 * t) / (t + 237.3))',{
         't': img.select(t_band)
     }).rename(band_name).copyProperties(img, ['system:time_start'])
-  
+
     sat_vp = ee.Image(sat_vp)
     return img.addBands(sat_vp)
 
@@ -78,10 +77,20 @@ def add_all_bands(img):
 
     img = ee.Image(img.copyProperties(img, ['system:time_start']))
     img = img.select(['T2MMAX', 'T2MMIN', 'SWGDN', 'rmin', 'rmax', 'vpd'],
-                  ['tmmx', 'tmmn', 'srad', 'rmin', 'rmax', 'vpd'])
+                     ['tmmx', 'tmmn', 'srad', 'rmin', 'rmax', 'vpd'])
     return img
 
 
 def calc_meteo(ic):
-    return ic.map(add_all_bands)
 
+    proj = ic.first().projection()
+
+    out = ic.map(function(img) {
+        img = img.resample('bicubic').reproject({
+            crs: proj,
+        }).copyProperties(img, ['system:time_start', 'system:index']);
+
+        return img
+        })
+
+    return out.map(add_all_bands);

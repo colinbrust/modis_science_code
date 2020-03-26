@@ -4,7 +4,7 @@ import pandas as pd
 from typing import Callable, TypeVar, Generic
 
 # Area in meters to buffer around each point and run the model at
-BUFFER_SIZE = 500
+BUFFER_SIZE = 1000
 T = TypeVar('T')
 
 
@@ -122,6 +122,7 @@ class ExtractGeeData(object):
                 try:
                     df = self._run_single_location(name=row['name'], year=row['year'],
                                                    lat=row['lat'], lon=row['lon'])
+
                 except ee.ee_exception.EEException as e:
                     print(e)
                     print('Re-running model at {} for {}'.format(row['name'], row['year']))

@@ -166,6 +166,8 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     Cp = 1013.0
     epsl = 0.622
 
+    # print(meteo.select('vpd').getInfo())
+
     # Function to calculate net radiation
     def calc_rn(temp, albedo, swrad, daylength):
         t = temp.expression('pow((273.15+Tavg),4)', {  # temp: degree C
@@ -683,7 +685,6 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         return ee.Image(img_out)
 
     et_out = meteo.map(calc_et)
-
     all_variables = kwargs.pop('all_variables') if 'all_variables' in kwargs else False
     if not all_variables:
         return et_out.select('ET')
