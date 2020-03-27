@@ -65,13 +65,13 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     proj = ee.Image(LAI.first()).projection()
 
     # Function to downscale inputs to match MODIS projection and resolution
-    def match_proj(img):
-        img = img.resample('bilinear').reproject(
-            crs=proj.crs(),
-            scale=500
-        ).copyProperties(img, ['system:time_start', 'system:index'])
-
-        return img
+    # def match_proj(img):
+    #     img = img.resample('bilinear').reproject(
+    #         crs=proj.crs(),
+    #         scale=500
+    #     ).copyProperties(img, ['system:time_start', 'system:index'])
+    #
+    #     return img
 
     # Import code that contains a spatial BPLUT
     bplut = bp.m16_bplut(roi, start, end) if 'bplut' not in kwargs else kwargs.pop('bplut')
@@ -81,7 +81,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     meteorology = meteorology \
         .filterDate(start, end) \
         .map(lambda img: img.clip(roi)) \
-        .map(match_proj)
+        # .map(match_proj)
 
     def avg_temp(img):
         tavg = img.expression('(tmin+tmax)/2-273.15', {
@@ -150,7 +150,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     if 'smapsm' in kwargs:
         print('Using SMAP soil moisture')
         smap_sm = kwargs['smapsm']
-        smap_sm = smap_sm.map(match_proj)
+        # smap_sm = smap_sm.map(match_proj)
         meteo = dataJoin2(meteo, smap_sm)
 
     meteo = meteo.map(lambda img: img.clip(roi))

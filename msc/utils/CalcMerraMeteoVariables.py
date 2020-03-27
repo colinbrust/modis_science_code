@@ -81,16 +81,16 @@ def add_all_bands(img):
     return img
 
 
+def meteo_proj(img, proj):
+    img = img.resample('bicubic').reproject(crs=proj)\
+        .copyProperties(img, ['system:time_start', 'system:index'])
+
+    return img
+
+
 def calc_meteo(ic):
 
     proj = ic.first().projection()
+    out = ic.map(lambda img: meteo_proj(img, proj))
 
-    out = ic.map(function(img) {
-        img = img.resample('bicubic').reproject({
-            crs: proj,
-        }).copyProperties(img, ['system:time_start', 'system:index']);
-
-        return img
-        })
-
-    return out.map(add_all_bands);
+    return out.map(add_all_bands)

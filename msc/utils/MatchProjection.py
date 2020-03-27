@@ -29,7 +29,7 @@ def reproject_image_to_master(master, slave, out_name):
     dst_ds = gdal.GetDriverByName('GTiff').Create(out_name, w, h, n_bands, data_type)
     dst_ds.SetGeoTransform(master_geotrans)
     dst_ds.SetProjection(master_proj)
-    gdal.ReprojectImage(slave_ds, dst_ds, slave_proj, master_proj, gdal.GRA_CubicSpline)
+    gdal.ReprojectImage(slave_ds, dst_ds, slave_proj, master_proj, gdal.GRA_Bilinear)
     dst_ds = None  # Flush to disk
     return out_name
 

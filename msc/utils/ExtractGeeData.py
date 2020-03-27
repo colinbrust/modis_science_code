@@ -4,7 +4,7 @@ import pandas as pd
 from typing import Callable, TypeVar, Generic
 
 # Area in meters to buffer around each point and run the model at
-BUFFER_SIZE = 1000
+BUFFER_SIZE = 10000
 T = TypeVar('T')
 
 
