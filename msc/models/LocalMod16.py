@@ -54,7 +54,7 @@ def mTemp_day(df, tmin_close, tmin_open):
 
 def mSM(df, sm_open, sm_close):
 
-    df['msm'] = (df.rzMean - sm_close)/(sm_open - sm_close)
+    df['msm'] = (df['sm-rootzone'] - sm_close)/(sm_open - sm_close)
     df['msm'] = np.clip(df.msm, 0, 1)
 
     return df
