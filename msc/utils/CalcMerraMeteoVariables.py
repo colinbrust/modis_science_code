@@ -1,4 +1,5 @@
 import ee
+
 ee.Initialize()
 
 
@@ -14,7 +15,7 @@ def calc_rh(img, temp_band, band_name):
 
 
 def calc_ravg(img):
-    ravg = img.expression('((rmin+rmax)/2)*0.01',{
+    ravg = img.expression('((rmin+rmax)/2)*0.01', {
         'rmin': img.select('rmin'),
         'rmax': img.select('rmax'),
     }).rename('ravg').copyProperties(img, ['system:time_start'])
@@ -33,34 +34,54 @@ def calc_tavg(img):
     return img.addBands(tavg)
 
 
-def calc_sat_vp(img, t_band, band_name):
-    sat_vp = img.expression('0.6108 * exp((17.27 * t) / (t + 237.3))',{
-        't': img.select(t_band)
-    }).rename(band_name).copyProperties(img, ['system:time_start'])
-
-    sat_vp = ee.Image(sat_vp)
-    return img.addBands(sat_vp)
-
+# def calc_sat_vp(img, t_band, band_name):
+#     sat_vp = img.expression('0.6108 * exp((17.27 * t) / (t + 237.3))',{
+#         't': img.select(t_band)
+#     }).rename(band_name).copyProperties(img, ['system:time_start'])
+#
+#     sat_vp = ee.Image(sat_vp)
+#     return img.addBands(sat_vp)
+#
+#
+# def calc_vpd(img):
+#
+#     img = calc_sat_vp(img, 'T2MMIN', 'svp_tmin')
+#     img = calc_sat_vp(img, 'T2MMAX', 'svp_tmax')
+#     img = calc_sat_vp(img, 'tavg', 'svp_tavg')
+#
+#     vpa = img.expression('((svp_tmin * rmax/100) + (svp_tmax * rmin/100)) / 2', {
+#         'svp_tmin': img.select('svp_tmin'),
+#         'svp_tmax': img.select('svp_tmax'),
+#         'rmax': img.select('rmax'),
+#         'rmin': img.select('rmin')
+#     }).rename('vp_actual').copyProperties(img, ['system:time_start'])
+#
+#     vpa = ee.Image(vpa)
+#     img = img.addBands(vpa)
+#
+#     vpd = img.expression('(svp_tavg - vp_actual)/1000', {
+#         'svp_tavg': img.select('svp_tavg'),
+#         'vp_actual': img.select('vp_actual')
+#     }).rename('vpd').copyProperties(img, ['system:time_start'])
+#
+#     vpd = ee.Image(vpd)
+#     return img.addBands(vpd)
 
 def calc_vpd(img):
-  
-    img = calc_sat_vp(img, 'T2MMIN', 'svp_tmin')
-    img = calc_sat_vp(img, 'T2MMAX', 'svp_tmax')
-    img = calc_sat_vp(img, 'tavg', 'svp_tavg')
 
-    vpa = img.expression('((svp_tmin * rmax/100) + (svp_tmax * rmin/100)) / 2', {
-        'svp_tmin': img.select('svp_tmin'),
-        'svp_tmax': img.select('svp_tmax'),
-        'rmax': img.select('rmax'),
-        'rmin': img.select('rmin')
-    }).rename('vp_actual').copyProperties(img, ['system:time_start'])
+    tavg = ee.Image(calc_tavg(img)).select('tavg')
+    lhs = img.expression('610.7 * exp((17.38 * tc)/(239 + tc))', {
+        'tc': tavg.select('tavg').subtract(273.15)
+    }).rename('lhs')
 
-    vpa = ee.Image(vpa)
-    img = img.addBands(vpa)
+    rhs = img.expression('(qv2m * ps)/(0.622 + (0.378 * qv2m))', {
+        'qv2m': img.select('QV2M'),
+        'ps': img.select('PS')
+    }).rename('rhs')
 
-    vpd = img.expression('(svp_tavg - vp_actual)/1000', {
-        'svp_tavg': img.select('svp_tavg'),
-        'vp_actual': img.select('vp_actual')
+    vpd = lhs.expression('lhs - rhs', {
+        'lhs': lhs.select('lhs'),
+        'rhs': rhs.select('rhs')
     }).rename('vpd').copyProperties(img, ['system:time_start'])
 
     vpd = ee.Image(vpd)
@@ -68,7 +89,6 @@ def calc_vpd(img):
 
 
 def add_all_bands(img):
-  
     img = calc_rh(img, 'T2MMAX', 'rmin')
     img = calc_rh(img, 'T2MMIN', 'rmax')
     img = calc_ravg(img)
@@ -82,14 +102,13 @@ def add_all_bands(img):
 
 
 def meteo_proj(img, proj):
-    img = img.resample('bicubic').reproject(crs=proj)\
+    img = img.resample('bicubic').reproject(crs=proj) \
         .copyProperties(img, ['system:time_start', 'system:index'])
 
     return img
 
 
 def calc_meteo(ic):
-
     proj = ic.first().projection()
     out = ic.map(lambda img: meteo_proj(img, proj))
 
