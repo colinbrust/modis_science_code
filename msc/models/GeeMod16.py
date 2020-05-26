@@ -18,7 +18,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         elev: ee.Image, elevation in meters ***Required***
         LAI: ee.ImageCollection of LAI,
         Fc: ee.ImageCollection of FPAR/Fc,
-        smapsm: ee.ImageCollection with 'rzMean' and 'fSM' bands returned from msc.utils.Smap.get_smap.
+        smapsm: ee.ImageCollection with 'sm-rootzone' and 'fSM' bands returned from msc.utils.Smap.get_smap.
         bplut: ee.Image of bplut params returned from a function in msc.utils.Bplut
         all_variables: bool, whether to export just ET or all intermediate variables as well.
     :return: ee.ImageCollection containing modeled evapotranspiration
@@ -62,17 +62,6 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     LAI = ee.ImageCollection(fp_lai.get('LAI'))
     Fc = ee.ImageCollection(fp_lai.get('FPAR'))
 
-    proj = ee.Image(LAI.first()).projection()
-
-    # Function to downscale inputs to match MODIS projection and resolution
-    def match_proj(img):
-        img = img.resample('bilinear').reproject(
-            crs=proj.crs(),
-            scale=500
-        ).copyProperties(img, ['system:time_start', 'system:index'])
-
-        return img
-
     # Import code that contains a spatial BPLUT
     bplut = bp.m16_bplut(roi, start, end) if 'bplut' not in kwargs else kwargs.pop('bplut')
     bplut = ee.Image(bplut)
@@ -81,7 +70,6 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     meteorology = meteorology \
         .filterDate(start, end) \
         .map(lambda img: img.clip(roi)) \
-        .map(match_proj)
 
     def avg_temp(img):
         tavg = img.expression('(tmin+tmax)/2-273.15', {
@@ -150,21 +138,49 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     if 'smapsm' in kwargs:
         print('Using SMAP soil moisture')
         smap_sm = kwargs['smapsm']
-        smap_sm = smap_sm.map(match_proj)
+        # smap_sm = smap_sm.map(match_proj)
         meteo = dataJoin2(meteo, smap_sm)
 
+        proj = ee.Image(smap_sm.first()).projection()
+        bplut = bplut.reproject(crs=proj.crs(), scale=9000)
+
+        # Function to downscale inputs to match MODIS projection and resolution
+        def match_proj(img):
+            img = img.resample('bilinear').reproject(
+                crs=proj.crs(),
+                scale=9000
+            ).copyProperties(img, ['system:time_start', 'system:index'])
+
+            return img
+    else:
+        proj = ee.Image(LAI.first()).projection()
+        bplut = bplut.reproject(crs=proj.crs(), scale=500)
+
+        # Function to downscale inputs to match MODIS projection and resolution
+        def match_proj(img):
+            img = img.resample('bilinear').reproject(
+                crs=proj.crs(),
+                scale=500
+            ).copyProperties(img, ['system:time_start', 'system:index'])
+
+            return img
+
     meteo = meteo.map(lambda img: img.clip(roi))
-    d = meteo.first().getInfo()
     meteo = meteo.filterDate(start, end)
+    meteo = meteo.map(match_proj)
 
     # calculate annual mean daily temperature in degree C and add to bplut for soil heat flux calculations
     Tannual = meteo.select('Tavg').mean().rename('Tannual')
+
+    bplut = bplut.reproject(crs=proj.crs(), scale=9000)
     bplut = bplut.addBands(Tannual)
 
     # Constants necessary for ET calculation
     SBC = 5.67 / 1e8  # (W/(m2 K4)) Stefan-Boltzmann constant
     Cp = 1013.0
     epsl = 0.622
+
+    # print(meteo.select('vpd').getInfo())
 
     # Function to calculate net radiation
     def calc_rn(temp, albedo, swrad, daylength):
@@ -560,7 +576,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         rhmax = img.select('rmax')
         rhmin = img.select('rmin')               # rh_night
         rh = (rhmax.add(rhmin)).multiply(0.5)   # % rh_day
-        vpd_day = img.select('vpd').multiply(1000)                 # Pa
+        vpd_day = img.select('vpd') # .multiply(1000)                 # Pa
         daylength = img.select('dayl')
         nightlength = daylength.expression('24*3600.0-dayl', {'dayl': daylength})
         Fc = img.select('Fc')
@@ -572,7 +588,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
         doy = ee.Date(img.get('system:time_start'))
 
-        sm_rz, rew = (img.select('rzMean'), img.select('fSM')) if 'smapsm' in kwargs else (ee.Image(0), ee.Image(0))
+        sm_rz, rew = (img.select('sm-rootzone'), img.select('fSM')) if 'smapsm' in kwargs else (ee.Image(0), ee.Image(0))
 
         # calculate each parameter values in day and night, respectively
         Rn_day = calc_rn(temp=ta_day, albedo=albedo, swrad=swrad, daylength=daylength)  # J/day/m2
@@ -678,12 +694,11 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             .set({'Date': doy})
 
         if 'smapsm' in kwargs:
-            img_out = ee.Image(img_out).addBands(sm_rz).addBands(rew).addBands(img.select('surfMean'))
+            img_out = ee.Image(img_out).addBands(sm_rz).addBands(rew).addBands(img.select('sm-surface'))
 
         return ee.Image(img_out)
 
     et_out = meteo.map(calc_et)
-
     all_variables = kwargs.pop('all_variables') if 'all_variables' in kwargs else False
     if not all_variables:
         return et_out.select('ET')

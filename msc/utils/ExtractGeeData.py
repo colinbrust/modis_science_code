@@ -4,7 +4,7 @@ import pandas as pd
 from typing import Callable, TypeVar, Generic
 
 # Area in meters to buffer around each point and run the model at
-BUFFER_SIZE = 500
+BUFFER_SIZE = 10000
 T = TypeVar('T')
 
 
@@ -19,6 +19,8 @@ class ExtractGeeData(object):
         longitude of the site, and the recorded observation from the site, respectively.
 
         :param model: A function that runs the desired model at the site locations specified in the template.
+
+        :param out_dir: Directory where data will be written to
 
         :param kwargs: Keyword arguments for the model that can't be derived from the template file. For example, to run
         MOD16, daylength, elevation, and meteorology imageCollections would be necessary, as the roi and year arguments
@@ -120,6 +122,7 @@ class ExtractGeeData(object):
                 try:
                     df = self._run_single_location(name=row['name'], year=row['year'],
                                                    lat=row['lat'], lon=row['lon'])
+
                 except ee.ee_exception.EEException as e:
                     print(e)
                     print('Re-running model at {} for {}'.format(row['name'], row['year']))

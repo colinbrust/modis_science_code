@@ -8,6 +8,7 @@ def make_custom_bplut(img: ee.Image,
 
     params = list(list(bp_dict.values())[0].keys())
     pfts = list(bp_dict.keys())
+
     dict_out = {}
 
     for param in params:
@@ -236,7 +237,6 @@ def m16_bplut(roi, start, end):
                  'gl_sh', 'gl_e_wv', 'Cl', 'rbl_min', 'rbl_max'])
 
     return bplut.updateMask(pft_lc.neq(0))
-
 
 def m17_bplut(roi, start, end):
     pft_lc = make_pft_lc(roi, start, end)
