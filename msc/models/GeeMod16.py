@@ -142,13 +142,13 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         meteo = dataJoin2(meteo, smap_sm)
 
         proj = ee.Image(smap_sm.first()).projection()
-        bplut = bplut.reproject(crs=proj.crs(), scale=9000)
+        bplut = bplut.reproject(crs=proj.crs(), scale=500)
 
         # Function to downscale inputs to match MODIS projection and resolution
         def match_proj(img):
             img = img.resample('bilinear').reproject(
                 crs=proj.crs(),
-                scale=9000
+                scale=500
             ).copyProperties(img, ['system:time_start', 'system:index'])
 
             return img
@@ -171,8 +171,6 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
     # calculate annual mean daily temperature in degree C and add to bplut for soil heat flux calculations
     Tannual = meteo.select('Tavg').mean().rename('Tannual')
-
-    bplut = bplut.reproject(crs=proj.crs(), scale=9000)
     bplut = bplut.addBands(Tannual)
 
     # Constants necessary for ET calculation

@@ -55,7 +55,7 @@ def get_optimal_params(kfold_dir: str, cond_filter: str = None) -> pd.DataFrame:
     return df.drop(columns=['like1', 'chain'])
 
 
-def run_all_with_opt_params(df: pd.DataFrame, kfold_dir: str, model: Callable, cond_filter: str = None) -> pd.DataFrame:
+def run_all_with_opt_params(df: pd.DataFrame, kfold_dir: str, model: Callable, cond_filter: str = None, premade: pd.DataFrame = None) -> pd.DataFrame:
     """
     Runs a model using optimal calibrated parameters.
     :param df: pd.DataFrame containing all necessary data to run model.
@@ -65,7 +65,7 @@ def run_all_with_opt_params(df: pd.DataFrame, kfold_dir: str, model: Callable, c
         details.
     :return:
     """
-    params = get_optimal_params(kfold_dir=kfold_dir, cond_filter=cond_filter)
+    params = premade if premade is not None else get_optimal_params(kfold_dir=kfold_dir, cond_filter=cond_filter)
     groups = params['group'].values
 
     if len(groups) == 1:

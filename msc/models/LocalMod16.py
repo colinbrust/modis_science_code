@@ -235,7 +235,6 @@ def LEsoil_night(df, sm_open, sm_close):
 def MOD16(df, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh,
           gl_e_wv, Cl, rbl_min, rbl_max, sm_open=None, sm_close=None):
 
-    print(df.columns)
     df = LEwetfun_day(df, gl_sh=gl_sh, gl_e_wv=gl_e_wv)
     df = LEwetfun_night(df, gl_sh=gl_sh, gl_e_wv=gl_e_wv)
 
