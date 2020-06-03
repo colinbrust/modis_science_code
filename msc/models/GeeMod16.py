@@ -135,6 +135,8 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     meteo = dataJoin2(meteo, Fc)
     meteo = dataJoin2(meteo, LAI)
 
+    proj = ee.Image(LAI.first()).projection()
+
     # Function to downscale inputs to match MODIS projection and resolution
     def match_proj(img):
         img = img.resample('bilinear').reproject(
@@ -146,8 +148,6 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
     if 'smapsm' in kwargs:
         print('Using SMAP soil moisture')
-        proj = ee.Image(LAI.first()).projection()
-
         smap_sm = kwargs['smapsm']
         smap_sm = smap_sm.map(match_proj)
         meteo = dataJoin2(meteo, smap_sm)
