@@ -55,7 +55,6 @@ class WriteModelToGee(object):
             roi = ee.Geometry.Polygon(self.bounds[i]).bounds()
 
             dat = self.model(year=self.year, roi=roi, **self.kwargs)
-            dat = dat.filter(ee.Filter.calendarRange(1, 12, 'month'))
             dat = dat.mean()  # Take the mean across the year
             out = ee.Image(dat).multiply(100).toInt16()  # Convert to int16 to save space
 

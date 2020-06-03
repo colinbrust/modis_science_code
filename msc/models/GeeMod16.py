@@ -135,35 +135,22 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     meteo = dataJoin2(meteo, Fc)
     meteo = dataJoin2(meteo, LAI)
 
+    # Function to downscale inputs to match MODIS projection and resolution
+    def match_proj(img):
+        img = img.resample('bilinear').reproject(
+            crs=proj.crs(),
+            scale=500
+        ).copyProperties(img, ['system:time_start', 'system:index'])
+
+        return img
+
     if 'smapsm' in kwargs:
         print('Using SMAP soil moisture')
-        smap_sm = kwargs['smapsm']
-        # smap_sm = smap_sm.map(match_proj)
-        meteo = dataJoin2(meteo, smap_sm)
-
-        proj = ee.Image(smap_sm.first()).projection()
-        bplut = bplut.reproject(crs=proj.crs(), scale=500)
-
-        # Function to downscale inputs to match MODIS projection and resolution
-        def match_proj(img):
-            img = img.resample('bilinear').reproject(
-                crs=proj.crs(),
-                scale=500
-            ).copyProperties(img, ['system:time_start', 'system:index'])
-
-            return img
-    else:
         proj = ee.Image(LAI.first()).projection()
-        bplut = bplut.reproject(crs=proj.crs(), scale=500)
 
-        # Function to downscale inputs to match MODIS projection and resolution
-        def match_proj(img):
-            img = img.resample('bilinear').reproject(
-                crs=proj.crs(),
-                scale=500
-            ).copyProperties(img, ['system:time_start', 'system:index'])
-
-            return img
+        smap_sm = kwargs['smapsm']
+        smap_sm = smap_sm.map(match_proj)
+        meteo = dataJoin2(meteo, smap_sm)
 
     meteo = meteo.map(lambda img: img.clip(roi))
     meteo = meteo.filterDate(start, end)
@@ -662,6 +649,10 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
         # calculate total daily LE, PLE, ET and PET.
         LE_day = LEwet_day.add(LEtrans_day).add(LEsoil_day)
+        ET_trans = LEtrans_day.divide(lamda_day)
+        ET_soil = LEsoil_day.divide(lamda_day)
+        ET_leaf = LEwet_day.divide(lamda_day)
+
         ET_day = LE_day.divide(lamda_day)
         LE_night = LEwet_night.add(LEtrans_night).add(LEsoil_night)
         ET_night = LE_night.divide(lamda_night)
@@ -677,17 +668,18 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             .addBands(LEsoil_day).addBands(LEsoil_night).addBands(LE).addBands(ET).addBands(daylength) .addBands(swrad)\
             .addBands(albedo).addBands(ta).addBands(ta_day).addBands(ta_night).addBands(rhmax).addBands(rhmin)\
             .addBands(rh).addBands(vpd_day).addBands(nightlength).addBands(Fc).addBands(LAI).addBands(svp_night) \
-            .addBands(svp_day).addBands(vpd_night).addBands(pa)\
+            .addBands(svp_day).addBands(vpd_night).addBands(pa).addBands(ET_trans).addBands(ET_soil).addBands(ET_leaf)\
             .select([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
                      18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
-                     37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50],
+                     37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53],
                     ['Rn_day', 'Rn_night', 'G_day', 'G_night', 'Ac_day', 'Ac_night', 'Asoil_day', 'Asoil_night',
                      'Fwet_day', 'Fwet_night', 'rho_day', 'rho_night', 'lamda_day', 'lamda_night', 's_day',
                      's_night', 'LEwet_day', 'LEwet_night', 'gama_day', 'gama_night', 'LEtrans_day', 'LEtrans_night',
                      'rtot_day', 'rtot_night', 'rrs_day', 'rrs_night', 'LEwetsoil_day', 'LEwetsoil_night',
                      'PLEsoil_day', 'PLEsoil_night', 'LEsoil_day', 'LEsoil_night', 'LE', 'ET', 'daylength',
                      'swrad', 'albedo', 'ta', 'ta_day', 'ta_night', 'rhmax', 'rhmin', 'rh', 'vpd_day',
-                     'nightlength', 'Fc', 'LAI', 'svp_night', 'svp_day', 'vpd_night', 'pa']) \
+                     'nightlength', 'Fc', 'LAI', 'svp_night', 'svp_day', 'vpd_night', 'pa', 'ET_trans', 'ET_soil',
+                     'ET_leaf']) \
             .copyProperties(img, [time]) \
             .set({'Date': doy})
 
@@ -699,5 +691,5 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     et_out = meteo.map(calc_et)
     all_variables = kwargs.pop('all_variables') if 'all_variables' in kwargs else False
     if not all_variables:
-        return et_out.select('ET')
+        return et_out.select(['ET', 'ET_trans', 'ET_soil', 'ET_leaf'])
     return et_out
