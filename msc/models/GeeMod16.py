@@ -561,7 +561,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         rhmax = img.select('rmax')
         rhmin = img.select('rmin')               # rh_night
         rh = (rhmax.add(rhmin)).multiply(0.5)   # % rh_day
-        vpd_day = img.select('vpd') # .multiply(1000)                 # Pa
+        vpd_day = img.select('vpd').multiply(1000)                 # Pa
         daylength = img.select('dayl')
         nightlength = daylength.expression('24*3600.0-dayl', {'dayl': daylength})
         Fc = img.select('Fc')
