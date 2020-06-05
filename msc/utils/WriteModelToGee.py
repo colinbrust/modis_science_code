@@ -12,7 +12,8 @@ class WriteModelToGee(object):
     """
     Class that runs a model across a list of tiles, then mosaics the tiles and aggregates the model results.
     """
-    def __init__(self, model: Callable, year: int, bounds: List, unq_id: str, asset_path: str, **kwargs: Dict) -> None:
+    def __init__(self, model: Callable, year: int, bounds: List, unq_id: str, asset_path: str,
+                 scale: int, **kwargs: Dict) -> None:
         """
         :param model: Model to be run across all 'bounds' for 'year'.
         :param year: The year to run the model for.
@@ -30,6 +31,7 @@ class WriteModelToGee(object):
         self.kwargs = kwargs
         self.unq_id = unq_id
         self.asset_path = asset_path
+        self.scale = scale
         self.out_name = os.path.join(asset_path, self.unq_id+'-'+str(self.year)).replace('\\', '/')
         self.ee_loc = shutil.which('earthengine')
         self.asset_names = self._make_asset_names()
@@ -61,7 +63,7 @@ class WriteModelToGee(object):
             task = ee.batch.Export.image.toAsset(
                 image=out,
                 description='{} for {}'.format('Intermediate Tile ' + str(i), self.unq_id),
-                scale=500,
+                scale=self.scale,
                 maxPixels=1e13,
                 region=self.bounds[i],
                 assetId=self.asset_names[i]
@@ -70,11 +72,12 @@ class WriteModelToGee(object):
             task.start()
 
     @staticmethod
-    def mosaic_tiles(asset_path: str, unq_id: str, roi: List = [[[-126.74, 50.06],
-                                                                 [-126.74, 22.75],
-                                                                 [-65.74, 22.75],
-                                                                 [-65.74, 50.06]]]) -> None:
+    def mosaic_tiles(asset_path: str, unq_id: str, scale: int, roi: List = [[[-126.74, 50.06],
+                                                                             [-126.74, 22.75],
+                                                                             [-65.74, 22.75],
+                                                                             [-65.74, 50.06]]]) -> None:
         """
+        :param scale:
         :param asset_path: Path to asset imageCollection or folder in earthengine where assets will be written.
         :param unq_id: Unique name identifier for the final mosaiced
         :param roi: Nested list of [lon, lat] that define the bounds of the image to export.
@@ -92,7 +95,7 @@ class WriteModelToGee(object):
         task = ee.batch.Export.image.toAsset(
             image=out,
             description='Mosaicing {}'.format(unq_id),
-            scale=500,
+            scale=scale,
             maxPixels=1e13,
             region=roi,
             assetId=os.path.join(asset_path, unq_id).replace('\\', '/')
@@ -109,7 +112,7 @@ class WriteModelToGee(object):
         :param roi:
         :return:
         """
-        self.mosaic_tiles(self.asset_path, self.unq_id, roi)
+        self.mosaic_tiles(self.asset_path, self.unq_id, self.scale, roi)
 
     def _rm_intermediates(self):
         """

@@ -45,7 +45,7 @@ extractor = ExtractGeeData(template='data/MOD16/template_example.csv',
                            daylength=dayl,
                            elev=elev,
                            bplut=bplut,
-                           smap_sm=None)
+                           smapsm=None)
 
 result = extractor._run_single_location(name='US-AR1', year=2010, lat=36.4267, lon=-99.42)
 print(result)

@@ -2,3 +2,5 @@
 /build/
 /dist/
 /msc.egg-info/
+/data/MOD16/kfold_results/*
+/data/MOD17/kfold_results/*
