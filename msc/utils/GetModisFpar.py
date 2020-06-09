@@ -107,7 +107,7 @@ def modis_fpar_lai(roi, year):
         return ee.ImageCollection(blockColl.merge(endDay))
 
     # compute daily interpolations of LAI and Fpar
-    LAI = ic_interp(imgCll, 'Lai').map(lambda img: img.rename('LAI').copyProperties(img,['system:time_start']))
+    LAI = ic_interp(imgCll, 'Lai').map(lambda img: img.multiply(0.1).rename('LAI').copyProperties(img,['system:time_start']))
 
     Fc = ic_interp(imgCll, 'Fpar').map(lambda img: img.multiply(0.01).rename('Fc').copyProperties(img, ['system:time_start']))
 

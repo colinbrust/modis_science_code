@@ -1,1 +1,5 @@
 .idea/*
+msc.egg-info
+build
+dist
+kfold_results/*
