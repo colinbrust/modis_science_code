@@ -173,6 +173,7 @@ def LEwetsoil_day(df):
 
     return df
 
+
 def LEwetsoil_night(df):
 
     df['ras'] = df.rtot_night*df.rrs_night/(df.rtot_night+df.rrs_night)

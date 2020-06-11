@@ -135,7 +135,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     meteo = dataJoin2(meteo, Fc)
     meteo = dataJoin2(meteo, LAI)
 
-    proj = ee.Image(LAI.first()).projection()
+    proj = ee.Image(LAI.first()).projection() if 'proj' not in kwargs else kwargs.pop('proj')
 
     # Function to downscale inputs to match MODIS projection and resolution
     def match_proj(img):
@@ -649,9 +649,17 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
         # calculate total daily LE, PLE, ET and PET.
         LE_day = LEwet_day.add(LEtrans_day).add(LEsoil_day)
-        ET_trans = LEtrans_day.divide(lamda_day)
-        ET_soil = LEsoil_day.divide(lamda_day)
-        ET_leaf = LEwet_day.divide(lamda_day)
+        ET_trans_day = LEtrans_day.divide(lamda_day)
+        ET_soil_day = LEsoil_day.divide(lamda_day)
+        ET_leaf_day = LEwet_day.divide(lamda_day)
+
+        ET_trans_night = LEtrans_night.divide(lamda_night)
+        ET_soil_night = LEsoil_night.divide(lamda_night)
+        ET_leaf_night = LEwet_night.divide(lamda_night)
+
+        ET_trans = ET_trans_day.add(ET_trans_night)
+        ET_soil = ET_soil_day.add(ET_soil_night)
+        ET_leaf = ET_leaf_day.add(ET_leaf_night)
 
         ET_day = LE_day.divide(lamda_day)
         LE_night = LEwet_night.add(LEtrans_night).add(LEsoil_night)
