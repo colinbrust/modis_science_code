@@ -9,12 +9,12 @@ from sklearn.model_selection import KFold
 
 BPLUT = {'tmin_open': {'min': 8, 'max': 12, 'guess': 10},
          'tmin_close': {'min': -8.0, 'max': -6.0, 'guess': -7.0},
-         'vpd_open': {'min': 0, 'max': 3500, 'guess': 1000},
+         'vpd_open': {'min': 0, 'max': 2000, 'guess': 1000},
          'vpd_close': {'min': 1450, 'max': 7000, 'guess': 3000},
-         'gl_sh': {'min': 0.0, 'max': 0.105, 'guess': 0.1},
-         'gl_e_wv': {'min': 0.0, 'max': 0.105, 'guess': 0.1},
-         'Cl': {'min': 0.0013, 'max': 0.13, 'guess': 0.005},
-         'rbl_min': {'min': 0, 'max': 110, 'guess': 70},
+         'gl_sh': {'min': 0.0, 'max': 0.12, 'guess': 0.1},
+         'gl_e_wv': {'min': 0.0, 'max': 0.12, 'guess': 0.1},
+         'Cl': {'min': 0.0013, 'max': 0.013, 'guess': 0.005},
+         'rbl_min': {'min': 10, 'max': 110, 'guess': 70},
          'rbl_max': {'min': 20, 'max': 150, 'guess': 120}}
 
 
@@ -119,26 +119,33 @@ if __name__ == '__main__':
         tmp = df[df['group'] == grp]
         fold = 0
         kf = KFold(n_splits=10, shuffle=True)
-        for train, test in kf.split(tmp):
-            train_df = tmp.reset_index(drop=True).filter(train, axis=0)
-            test_df = tmp.reset_index(drop=True).filter(test, axis=0)
+        while True:
+            try:
+                for train, test in kf.split(tmp):
+                    train_df = tmp.reset_index(drop=True).filter(train, axis=0)
+                    test_df = tmp.reset_index(drop=True).filter(test, axis=0)
 
-            save_name = os.path.join(parser_args.out_dir, 'nRuns-' + str(parser_args.n_runs) + '_fold-' + str(fold) +
-                                     '_group-' + grp)
+                    save_name = os.path.join(parser_args.out_dir, 'nRuns-' + str(parser_args.n_runs) + '_fold-' + str(fold) +
+                                             '_group-' + grp)
 
-            sampler = spotpy.algorithms.sa(spotpy_setup(tmp=train_df, param_bounds=BPLUT,
-                                                           use_sm=parser_args.use_sm),
-                                              dbname=save_name+'_training', dbformat='csv', save_sim=False)
-            sampler.sample(repetitions=parser_args.n_runs)
+                    sampler = spotpy.algorithms.mcmc(spotpy_setup(tmp=train_df, param_bounds=BPLUT,
+                                                                   use_sm=parser_args.use_sm),
+                                                      dbname=save_name+'_training', dbformat='csv', save_sim=False)
+                    sampler.sample(repetitions=parser_args.n_runs)
 
-            params = pd.read_csv(save_name+'_training.csv')
-            params = params.groupby('chain').apply(lambda x: x[x['like1'] == x['like1'].max()])
-            params = params.drop(columns=['chain', 'like1']).reset_index().drop(columns=['level_1']).drop(
-                columns=['chain'])
-            params = params.agg('mean').to_frame().reset_index()
-            params['index'] = params['index'].str.replace('par', '')
-            params = params.set_index('index').to_dict()[0]
+                    params = pd.read_csv(save_name+'_training.csv')
+                    params = params.groupby('chain').apply(lambda x: x[x['like1'] == x['like1'].max()])
+                    params = params.drop(columns=['chain', 'like1']).reset_index().drop(columns=['level_1']).drop(
+                        columns=['chain'])
+                    params = params.agg('mean').to_frame().reset_index()
+                    params['index'] = params['index'].str.replace('par', '')
+                    params = params.set_index('index').to_dict()[0]
 
-            val = MOD16(test_df, **params)
-            val.to_csv(save_name+'_holdout.csv')
-            fold += 1
+                    val = MOD16(test_df, **params)
+                    val.to_csv(save_name+'_holdout.csv')
+                    fold += 1
+            except KeyError as e:
+                print(e)
+                print('Rerunning with new params')
+                continue
+            break
