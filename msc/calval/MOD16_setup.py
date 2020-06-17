@@ -117,10 +117,10 @@ if __name__ == '__main__':
 
     for grp in grp_list:
         tmp = df[df['group'] == grp]
-        fold = 0
         kf = KFold(n_splits=10, shuffle=True)
         while True:
             try:
+                fold = 0
                 for train, test in kf.split(tmp):
                     train_df = tmp.reset_index(drop=True).filter(train, axis=0)
                     test_df = tmp.reset_index(drop=True).filter(test, axis=0)
