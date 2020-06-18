@@ -62,6 +62,17 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     LAI = ee.ImageCollection(fp_lai.get('LAI'))
     Fc = ee.ImageCollection(fp_lai.get('FPAR'))
 
+    proj = ee.Image(LAI.first()).projection() if 'proj' not in kwargs else kwargs.pop('proj')
+
+    # Function to downscale inputs to match MODIS projection and resolution
+    def match_proj(img):
+        img = img.resample('bilinear').reproject(
+            crs=proj.crs(),
+            scale=500
+        ).copyProperties(img, ['system:time_start', 'system:index'])
+
+        return img
+
     # Import code that contains a spatial BPLUT
     bplut = bp.m16_bplut(roi, start, end) if 'bplut' not in kwargs else kwargs.pop('bplut')
     bplut = ee.Image(bplut)
@@ -69,7 +80,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     # Filter meteorological data
     meteorology = meteorology \
         .filterDate(start, end) \
-        .map(lambda img: img.clip(roi)) \
+        .map(lambda img: img.clip(roi))
 
     def avg_temp(img):
         tavg = img.expression('(tmin+tmax)/2-273.15', {
@@ -132,19 +143,9 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     # Group all input data into one imageCollection
     meteo = dataJoin(daylength, albedo_interp)
     meteo = dataJoin2(meteo, meteorology)
+    meteo = meteo.map(match_proj)
     meteo = dataJoin2(meteo, Fc)
     meteo = dataJoin2(meteo, LAI)
-
-    proj = ee.Image(LAI.first()).projection() if 'proj' not in kwargs else kwargs.pop('proj')
-
-    # Function to downscale inputs to match MODIS projection and resolution
-    def match_proj(img):
-        img = img.resample('bilinear').reproject(
-            crs=proj.crs(),
-            scale=500
-        ).copyProperties(img, ['system:time_start', 'system:index'])
-
-        return img
 
     if 'smapsm' in kwargs:
         print('Using SMAP soil moisture')
@@ -154,7 +155,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
     meteo = meteo.map(lambda img: img.clip(roi))
     meteo = meteo.filterDate(start, end)
-    meteo = meteo.map(match_proj)
+    # meteo = meteo.map(match_proj)
 
     # calculate annual mean daily temperature in degree C and add to bplut for soil heat flux calculations
     Tannual = meteo.select('Tavg').mean().rename('Tannual')
@@ -698,5 +699,4 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     if not all_variables:
         return et_out.select(['ET', 'ET_trans', 'ET_soil', 'ET_leaf'])
 
-    print(ee.Image(et_out.first()).bandNames().getInfo())
     return et_out
