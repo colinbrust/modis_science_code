@@ -112,7 +112,6 @@ if __name__ == '__main__':
     df = du.join_with_groups(df, group_df)
     df = du.filter_nan_obs(df)
 
-    # Nested dict defining parameter space for MCMC calibration process
     grp_list = np.unique(df['group'])
 
     for grp in grp_list:
@@ -142,7 +141,7 @@ if __name__ == '__main__':
                     params = params.set_index('index').to_dict()[0]
 
                     val = MOD16(test_df, **params)
-                    val.to_csv(save_name+'_holdout.csv')
+                    val.to_csv(save_name+'_holdout.csv', index=False)
                     fold += 1
             except KeyError as e:
                 print(e)

@@ -65,6 +65,7 @@ class WriteModelToGee(object):
                 description='{} for {}'.format('Intermediate Tile ' + str(i), self.unq_id),
                 scale=self.scale,
                 maxPixels=1e13,
+                crs='EPSG:4326',
                 region=self.bounds[i],
                 assetId=self.asset_names[i]
             )
@@ -96,6 +97,7 @@ class WriteModelToGee(object):
             image=out,
             description='Mosaicing {}'.format(unq_id),
             scale=scale,
+            crs='EPSG:4326',
             maxPixels=1e13,
             region=roi,
             assetId=os.path.join(asset_path, unq_id).replace('\\', '/')
