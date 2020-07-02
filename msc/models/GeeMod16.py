@@ -18,7 +18,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         elev: ee.Image, elevation in meters ***Required***
         LAI: ee.ImageCollection of LAI,
         Fc: ee.ImageCollection of FPAR/Fc,
-        smapsm: ee.ImageCollection with 'sm-rootzone' and 'fSM' bands returned from msc.utils.Smap.get_smap.
+        smapsm: ee.ImageCollection with 'fSM-rz' and 'fSM' bands returned from msc.utils.Smap.get_smap.
         bplut: ee.Image of bplut params returned from a function in msc.utils.Bplut
         all_variables: bool, whether to export just ET or all intermediate variables as well.
     :return: ee.ImageCollection containing modeled evapotranspiration
@@ -572,7 +572,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
         doy = ee.Date(img.get('system:time_start'))
 
-        sm_rz, rew = (img.select('sm-rootzone'), img.select('fSM')) if 'smapsm' in kwargs else (ee.Image(0), ee.Image(0))
+        sm_rz, rew = (img.select('fSM-rz'), img.select('fSM')) if 'smapsm' in kwargs else (ee.Image(0), ee.Image(0))
 
         # calculate each parameter values in day and night, respectively
         Rn_day = calc_rn(temp=ta_day, albedo=albedo, swrad=swrad, daylength=daylength)  # J/day/m2

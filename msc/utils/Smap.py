@@ -5,8 +5,11 @@ nr = ee.ImageCollection('users/colinbrust/NatureRun').filterDate('2003-01-01', '
 
 SMAP = nr.merge(l4)
 
-MIN = SMAP.select('sm-surface').min()
-MAX = SMAP.select('sm-surface').max()
+SURF_MIN = SMAP.select('sm-surface').min()
+SURF_MAX = SMAP.select('sm-surface').max()
+
+ROOT_MIN = SMAP.select('sm-rootzone').min()
+ROOT_MAX = SMAP.select('sm-rootzone').max()
 
 
 def fSM_calc(img, surf_min, surf_max):
@@ -17,13 +20,26 @@ def fSM_calc(img, surf_min, surf_max):
     return img.addBands(fSM1).copyProperties(img, ['system:index', 'system:time_start'])
 
 
+def fSM_rz_calc(img, rz_min, rz_max):
+
+    fSM1 = img.expression('(sm - smMin)/(smMax - smMin)', {
+        'sm': img.select('sm-rootzone'),
+        'smMin': rz_min,
+        'smMax': rz_max}).rename('fSM-rz')
+
+    return img.addBands(fSM1).copyProperties(img, ['system:index', 'system:time_start'])
+
+
 def get_smap(start, end):
 
-    fSM = SMAP.filterDate(start, end).map(lambda x: fSM_calc(x, MIN, MAX))
+    fSM = SMAP.filterDate(start, end).map(lambda x: fSM_calc(x, SURF_MIN, SURF_MAX))
+    fSM = fSM.map(lambda x: fSM_rz_calc(x, ROOT_MIN, ROOT_MAX))
     return fSM
 
 
 def get_smap_premade(coll):
 
-    fSM = coll.map(lambda x: fSM_calc(x, MIN, MAX))
+    fSM = coll.map(lambda x: fSM_calc(x, SURF_MIN, SURF_MAX))
+    fSM = fSM.map(lambda x: fSM_rz_calc(x, ROOT_MIN, ROOT_MAX))
+
     return fSM

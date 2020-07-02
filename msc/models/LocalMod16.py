@@ -54,7 +54,7 @@ def mTemp_day(df, tmin_close, tmin_open):
 
 def mSM(df, sm_open, sm_close):
 
-    df['msm'] = (df['sm-rootzone'] - sm_close)/(sm_open - sm_close)
+    df['msm'] = (df['fSM-rz'] - sm_close)/(sm_open - sm_close)
     df['msm'] = np.clip(df.msm, 0, 1)
 
     return df
@@ -112,6 +112,34 @@ def LEtrans_night(df, gl_sh):
     dat['LEtrans'] = (dat.s_night*dat.Ac_night+dat.rho_night*Cp*dat.vpd_night*dat.Fc*dat.nightlength/dat.ra)*(1.-dat.Fwet_night)/(dat.s_night+dat.gama_night*(1+dat.rs/dat.ra))
 
     df['LEtrans_night'] = dat.LEtrans
+    return df
+
+
+def LEtrans_day_no_scalars(df, Cl, gl_sh, vpd_open, vpd_close, tmin_open, tmin_close, sm_open, sm_close):
+
+    df['ta'] = ((df.ta_day+273.15)/293.15)**1.75
+    dat = df
+    dat['rcorr'] = 1.0/((101300/dat.pa)*dat.ta)
+
+    dat = mVPD_day(dat, vpd_close=vpd_close, vpd_open=vpd_open)
+    dat = mTemp_day(dat, tmin_close=tmin_close, tmin_open=tmin_open)
+
+    if sm_open is not None and sm_close is not None:
+        dat = mSM(dat, sm_open=sm_open, sm_close=sm_close)
+
+    dat['Gs1'] = Cl*dat.rcorr
+    dat['Gcu'] = dat.rcorr*0.00001
+    dat['Gs2'] = gl_sh
+    dat['Cc'] = dat.LAI*(1.0-dat.Fwet_day)*(dat.Gs2*(dat.Gs1+dat.Gcu))/(dat.Gs1+dat.Gs2+dat.Gcu)
+
+    dat['Cc'] = np.where((dat['LAI'] > 0) & ((1.0 - dat['Fwet_day']) > 0), dat['Cc'], 0)
+    dat['rs'] = 1.0/dat.Cc
+    dat['rh'] = 1.0/gl_sh
+    dat['rr'] = dat.rho_day*Cp/(4.0*SBC*(dat.ta_day+273.15)*(dat.ta_day+273.15)*(dat.ta_day+273.15))
+    dat['ra'] = (dat.rh*dat.rr)/(dat.rh+dat.rr)
+    dat['LEtrans'] = (dat.s_day*dat.Ac_day+dat.rho_day*Cp*dat.vpd_day*dat.Fc*dat.daylength/dat.ra)*(1.-dat.Fwet_day)/(dat.s_day+dat.gama_day*(1+dat.rs/dat.ra))
+
+    df['LEtrans_day_no_scalars'] = dat.LEtrans
     return df
 
 
@@ -234,7 +262,7 @@ def LEsoil_night(df, sm_open, sm_close):
 # -------------------------------------------------Evapotranspiration------------------------------------------
 # calculate total ET
 def MOD16(df, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh,
-          gl_e_wv, Cl, rbl_min, rbl_max, sm_open=None, sm_close=None):
+          gl_e_wv, Cl, rbl_min, rbl_max, sm_open=None, sm_close=None, no_scalars=False):
 
     df = LEwetfun_day(df, gl_sh=gl_sh, gl_e_wv=gl_e_wv)
     df = LEwetfun_night(df, gl_sh=gl_sh, gl_e_wv=gl_e_wv)
@@ -266,5 +294,12 @@ def MOD16(df, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh,
     df['ET_night'] = df.LE_night/df.lamda_night
     df['LE'] = df.LE_day + df.LE_night
     df['simulation'] = df.ET_day + df.ET_night
+
+    if no_scalars:
+        df = LEtrans_day_no_scalars(df, Cl=Cl, gl_sh=gl_sh, vpd_open=vpd_open, vpd_close=vpd_close,
+                                    tmin_open=tmin_open, tmin_close=tmin_close, sm_open=sm_open, sm_close=sm_close)
+        df['LE_day_no_scalars'] = df.LEwet_day + df.LEtrans_day_no_scalars + df.LEsoil_day
+        df['ET_day_no_scalars'] = df.LE_day_no_scalars / df.lamda_day
+        df['simulation_no_scalars'] = df.ET_day_no_scalars + df.ET_night
 
     return df
