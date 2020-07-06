@@ -1,7 +1,6 @@
 import ee
 from msc.utils import Bplut as bp, GetModisFpar as fp
 
-
 # Global constants
 time = 'system:time_start'
 day = (24 * 60 * 60 * 1000)
@@ -298,7 +297,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             'rho': rho,
             'Cp': Cp,
             'SBC': SBC,
-            't': temp.add(273.15)
+            't': temp  # temp.add(273.15)
         })
         rhrc = rhc.expression('rhc*rrc/(rhc+rrc)', {
             'rhc': rhc,
@@ -389,7 +388,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             'rho': rho,
             'Cp': Cp,
             'SBC': SBC,
-            't': temp.add(273.15)
+            't': temp  # temp.add(273.15)
         })
         ra = rr.expression('(rh*rr)/(rh+rr)', {'rh': rh, 'rr': rr})
 
@@ -490,7 +489,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             'rho': rho,
             'Cp': Cp,
             'SBC': SBC,
-            'T': temp.add(273.15)
+            'T': temp  # temp.add(273.15)
         })
         return rrs
 
@@ -539,7 +538,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
     # Function to calculate latent heat flux for non-saturated soil
     def calc_total_soil_evap(rh, vpd, LEwetsoil, PLEsoil, rew):
-        
+
         if 'smapsm' in kwargs:
             return PLEsoil.multiply(rew).add(LEwetsoil)
         else:
@@ -552,20 +551,20 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
     # Aggregate all functions to calculate total ET
     def calc_et(img):
-        swrad = img.select('srad')            # W/m2
+        swrad = img.select('srad')  # W/m2
         albedo = img.select('albedo').multiply(0.001)
         ta = img.select('Tavg')
-        ta_day = ta   # degree C
+        ta_day = ta  # degree C
         ta_night = img.select('tmmn').subtract(273.15)
         rhmax = img.select('rmax')
-        rhmin = img.select('rmin')               # rh_night
-        rh = (rhmax.add(rhmin)).multiply(0.5)   # % rh_day
-        vpd_day = img.select('vpd').multiply(1000)                 # Pa
+        rhmin = img.select('rmin')  # rh_night
+        rh = (rhmax.add(rhmin)).multiply(0.5)  # % rh_day
+        vpd_day = img.select('vpd').multiply(1000)  # Pa
         daylength = img.select('dayl')
         nightlength = daylength.expression('24*3600.0-dayl', {'dayl': daylength})
         Fc = img.select('Fc')
         LAI = img.select('LAI')
-        svp_night = calc_saturated_vapor_pressure(ta_night)   # Pa
+        svp_night = calc_saturated_vapor_pressure(ta_night)  # Pa
         svp_day = calc_saturated_vapor_pressure(ta_day)
         vpd_night = svp_night.multiply(ee.Image(1).subtract((rhmin.multiply(0.01))))  # Pa
         pa = Pafun(elev)
@@ -665,16 +664,16 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         LE = LE_day.add(LE_night)
         ET = ET_day.add(ET_night)
 
-        img_out = Rn_day.addBands(Rn_night).addBands(G_day).addBands(G_night).addBands(Ac_day).addBands(Ac_night)\
-            .addBands(Asoil_day).addBands(Asoil_night).addBands(Fwet_day).addBands(Fwet_night).addBands(rho_day)\
-            .addBands(rho_night).addBands(lamda_day).addBands(lamda_night).addBands(s_day).addBands(s_night)\
-            .addBands(LEwet_day).addBands(LEwet_night).addBands(gama_day).addBands(gama_night).addBands(LEtrans_day)\
-            .addBands(LEtrans_night).addBands(rtot_day).addBands(rtot_night).addBands(rrs_day).addBands(rrs_night)\
-            .addBands(LEwetsoil_day).addBands(LEwetsoil_night).addBands(PLEsoil_day).addBands(PLEsoil_night)\
-            .addBands(LEsoil_day).addBands(LEsoil_night).addBands(LE).addBands(ET).addBands(daylength) .addBands(swrad)\
-            .addBands(albedo).addBands(ta).addBands(ta_day).addBands(ta_night).addBands(rhmax).addBands(rhmin)\
+        img_out = Rn_day.addBands(Rn_night).addBands(G_day).addBands(G_night).addBands(Ac_day).addBands(Ac_night) \
+            .addBands(Asoil_day).addBands(Asoil_night).addBands(Fwet_day).addBands(Fwet_night).addBands(rho_day) \
+            .addBands(rho_night).addBands(lamda_day).addBands(lamda_night).addBands(s_day).addBands(s_night) \
+            .addBands(LEwet_day).addBands(LEwet_night).addBands(gama_day).addBands(gama_night).addBands(LEtrans_day) \
+            .addBands(LEtrans_night).addBands(rtot_day).addBands(rtot_night).addBands(rrs_day).addBands(rrs_night) \
+            .addBands(LEwetsoil_day).addBands(LEwetsoil_night).addBands(PLEsoil_day).addBands(PLEsoil_night) \
+            .addBands(LEsoil_day).addBands(LEsoil_night).addBands(LE).addBands(ET).addBands(daylength).addBands(swrad) \
+            .addBands(albedo).addBands(ta).addBands(ta_day).addBands(ta_night).addBands(rhmax).addBands(rhmin) \
             .addBands(rh).addBands(vpd_day).addBands(nightlength).addBands(Fc).addBands(LAI).addBands(svp_night) \
-            .addBands(svp_day).addBands(vpd_night).addBands(pa).addBands(ET_trans).addBands(ET_soil).addBands(ET_leaf)\
+            .addBands(svp_day).addBands(vpd_night).addBands(pa).addBands(ET_trans).addBands(ET_soil).addBands(ET_leaf) \
             .select([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
                      18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
                      37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53],
