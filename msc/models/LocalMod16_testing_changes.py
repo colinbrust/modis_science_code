@@ -11,10 +11,9 @@ def LEwetfun_day(df, gl_sh, gl_e_wv):
     df['rhc'] = (1.0/(gl_sh*df.LAI*df.Fwet_day))
     df['t'] = df.ta_day  # + 273.15
     df['rrc'] = df.rho_day*Cp/(4.0*SBC*df.t*df.t*df.t)
-    df['rhrc'] = df.rhc*df.rrc/(df.rhc+df.rrc)
+    df['rhrc'] = (df.rhc*df.rrc)/(df.rhc+df.rrc)
     df['rvc'] = 1.0/(gl_e_wv*df.LAI*df.Fwet_day)
-    df['LEwet_day'] = (df.s_day * df.Ac_day + df.rho_day * Cp * df.vpd_day * df.Fc * df.daylength / df.rhrc) * df.Fwet_day /\
-                      (df.s_day + (df.pa * Cp * df.rvc / (df.lamda_day * epsl * df.rhrc)))
+    df['LEwet_day'] = (df.s_day * df.Ac_day + df.rho_day * Cp * df.vpd_day * df.Fc * df.daylength / df.rhrc) * df.Fwet_day / (df.s_day + ((df.pa * Cp * df.rvc) / (df.lamda_day * epsl * df.rhrc)))
 
     df = df.drop(columns=['t', 'rhc', 'rrc', 'rhrc', 'rvc'])
     return df
