@@ -34,39 +34,6 @@ def calc_tavg(img):
     return img.addBands(tavg)
 
 
-# def calc_sat_vp(img, t_band, band_name):
-#     sat_vp = img.expression('0.6108 * exp((17.27 * t) / (t + 237.3))',{
-#         't': img.select(t_band)
-#     }).rename(band_name).copyProperties(img, ['system:time_start'])
-#
-#     sat_vp = ee.Image(sat_vp)
-#     return img.addBands(sat_vp)
-#
-#
-# def calc_vpd(img):
-#
-#     img = calc_sat_vp(img, 'T2MMIN', 'svp_tmin')
-#     img = calc_sat_vp(img, 'T2MMAX', 'svp_tmax')
-#     img = calc_sat_vp(img, 'tavg', 'svp_tavg')
-#
-#     vpa = img.expression('((svp_tmin * rmax/100) + (svp_tmax * rmin/100)) / 2', {
-#         'svp_tmin': img.select('svp_tmin'),
-#         'svp_tmax': img.select('svp_tmax'),
-#         'rmax': img.select('rmax'),
-#         'rmin': img.select('rmin')
-#     }).rename('vp_actual').copyProperties(img, ['system:time_start'])
-#
-#     vpa = ee.Image(vpa)
-#     img = img.addBands(vpa)
-#
-#     vpd = img.expression('(svp_tavg - vp_actual)/1000', {
-#         'svp_tavg': img.select('svp_tavg'),
-#         'vp_actual': img.select('vp_actual')
-#     }).rename('vpd').copyProperties(img, ['system:time_start'])
-#
-#     vpd = ee.Image(vpd)
-#     return img.addBands(vpd)
-
 def calc_vpd(img):
 
     tavg = ee.Image(calc_tavg(img)).select('tavg')

@@ -1,5 +1,5 @@
 import ee
-from msc.utils import Bplut as bp, GetModisFpar as fp
+from msc.utils import Bplut as bp, GetModisFpar as fp, GapFill as gf
 
 
 # Global constants
@@ -114,18 +114,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     albedo = albedo.select('Albedo_WSA_shortwave') \
         .map(lambda img: img.rename('albedo').clip(roi))
 
-    # interpolate albedo with using the mean annual albedo each year.
-    mean_albedo = albedo.mean()
-
-    def albedo_fun(img):
-        masked = img.unmask()
-        filled = masked.where(masked.eq(0), mean_albedo)
-
-        return filled.rename('albedo') \
-            .copyProperties(img, ['system:time_start']) \
-            .copyProperties(img, ['system:time_end'])
-
-    albedo_interp = albedo.map(albedo_fun)
+    albedo_interp = gf.gap_fill(albedo)
 
     # Function to join the daily daylength, albedo and meteorology data together
     def dataJoin(left, right):
@@ -171,7 +160,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         t = temp.expression('pow((273.15+Tavg),4)', {  # temp: degree C
             'Tavg': temp})
 
-        ea = temp.expression('1-0.26*exp((-7.77)*0.0001*T*T)', {
+        ea = temp.expression('1-0.261*exp((-7.77)*0.0001*T*T)', {
             'T': temp})
 
         Rnet = t.expression('((1-a)*R+(ea-0.97)*t*sbc)*d', {  # Rn unit:J/m2

@@ -697,5 +697,4 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     all_variables = kwargs.pop('all_variables') if 'all_variables' in kwargs else False
     if not all_variables:
         return et_out.select(['ET', 'ET_trans', 'ET_soil', 'ET_leaf'])
-
     return et_out
