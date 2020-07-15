@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import argparse
 import os
-from msc.models.LocalMod16_testing_changes import MOD16
+from msc.models.LocalMod16 import MOD16
 from msc.utils import DatasetUtils as du
 from sklearn.model_selection import KFold
 
@@ -17,16 +17,6 @@ BPLUT = {'tmin_open': {'min': 8, 'max': 12, 'guess': 10},
          'rbl_min': {'min': 10, 'max': 110, 'guess': 70},
          'rbl_max': {'min': 20, 'max': 150, 'guess': 120}}
 
-BPLUT2 = [spotpy.parameter.List('tmin_open', list(np.arange(8, 13)), repeat=True),
-          spotpy.parameter.List('tmin_close', list(np.arange(-8, -5)), repeat=True),
-          spotpy.parameter.List('vpd_open', list(np.arange(0, 2000, 100)), repeat=True),
-          spotpy.parameter.List('vpd_close', list(np.arange(1450, 7000, 100)), repeat=True),
-          spotpy.parameter.List('gl_sh', list(np.arange(0, 0.12, 0.001)), repeat=True),
-          spotpy.parameter.List('gl_e_wv', list(np.arange(0, 0.12, 0.001)), repeat=True),
-          spotpy.parameter.List('Cl', list(np.arange(0, 0.013, 0.0005)), repeat=True),
-          spotpy.parameter.List('rbl_min', list(np.arange(10, 115, 5)), repeat=True),
-          spotpy.parameter.List('rbl_min', list(np.arange(20, 155, 5)), repeat=True)]
-
 
 class model(object):
 
@@ -35,7 +25,7 @@ class model(object):
         self.tmp = tmp
         self.observations = tmp.target.values
 
-    def run(self, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh, gl_e_wv, Cl, rbl_min, rbl_max, beta=None,
+    def run(self, tmin_open, tmin_close, vpd_close, vpd_open, gl_sh, gl_e_wv, Cl, rbl_min, rbl_max,
             sm_open=None, sm_close=None):
 
         if tmin_open < tmin_close or vpd_open > vpd_close or rbl_min > rbl_max:
@@ -48,7 +38,7 @@ class model(object):
 
         else:
             out = MOD16(self.tmp, tmin_open=tmin_open, tmin_close=tmin_close, vpd_open=vpd_open, vpd_close=vpd_close,
-                        gl_sh=gl_sh, gl_e_wv=gl_e_wv, Cl=Cl, rbl_min=rbl_min, rbl_max=rbl_max, beta=beta,
+                        gl_sh=gl_sh, gl_e_wv=gl_e_wv, Cl=Cl, rbl_min=rbl_min, rbl_max=rbl_max,
                         sm_close=sm_close, sm_open=sm_open)
 
             return out.simulation.values
@@ -60,23 +50,15 @@ class spotpy_setup(object):
         self.param_bounds = param_bounds
         self.use_sm = use_sm
 
-        # if self.use_sm:
-        #     self.param_bounds['sm_open'] = {'min': 0.1, 'max': 1.0, 'guess': 0.5}
-        #     self.param_bounds['sm_close'] = {'min': 0.0, 'max': 0.2, 'guess': 0.05}
-        # else:
-        #     self.param_bounds['beta'] = {'min': 0, 'max': 1000, 'guess': 250}
         if self.use_sm:
-            self.param_bounds.append(spotpy.parameter.List('sm_open', list(np.arange(0.1, 1.01, 0.01)), repeat=True))
-            self.param_bounds.append(spotpy.parameter.List('sm_close', list(np.arange(0.0, 0.21, 0.01)), repeat=True))
-        else:
-            self.param_bounds.append(spotpy.parameter.List('beta', list(np.arange(100, 1100, 100)), repeat=True))
+            self.param_bounds['sm_open'] = {'min': 0.1, 'max': 1.0, 'guess': 0.5}
+            self.param_bounds['sm_close'] = {'min': 0.0, 'max': 0.2, 'guess': 0.05}
 
         self.model = model(self.tmp)
-        # self.params = [spotpy.parameter.Uniform(x,
-        #                                         low=self.param_bounds[x]['min'],
-        #                                         high=self.param_bounds[x]['max'],
-        #                                         optguess=self.param_bounds[x]['guess']) for x in self.param_bounds]
-        self.params = self.param_bounds
+        self.params = [spotpy.parameter.Uniform(x,
+                                                low=self.param_bounds[x]['min'],
+                                                high=self.param_bounds[x]['max'],
+                                                optguess=self.param_bounds[x]['guess']) for x in self.param_bounds]
 
     def parameters(self):
         return spotpy.parameter.generate(self.params)
@@ -86,17 +68,14 @@ class spotpy_setup(object):
         if self.use_sm:
             sm_open = vector[9]
             sm_close = vector[10]
-            beta = None
 
         else:
             sm_open = None
             sm_close = None
-            beta = vector[9]
-        print(vector)
 
         return self.model.run(tmin_open=vector[0], tmin_close=vector[1], vpd_open=vector[2], vpd_close=vector[3],
                               gl_sh=vector[4], gl_e_wv=vector[5], Cl=vector[6], rbl_min=vector[7], rbl_max=vector[8],
-                              beta=beta, sm_open=sm_open, sm_close=sm_close)
+                              sm_open=sm_open, sm_close=sm_close)
 
     def evaluation(self):
         return self.model.observations
@@ -152,8 +131,8 @@ if __name__ == '__main__':
                         save_name = os.path.join(parser_args.out_dir,
                                                  'nRuns-' + str(parser_args.n_runs) + '_fold-' + str(fold) +
                                                  '_group-' + grp + '_method-mcmc')
-                        sampler = spotpy.algorithms.mcmc(spotpy_setup(tmp=train_df, param_bounds=BPLUT2,
-                                                                    use_sm=parser_args.use_sm),
+                        sampler = spotpy.algorithms.mcmc(spotpy_setup(tmp=train_df, param_bounds=BPLUT,
+                                                                      use_sm=parser_args.use_sm),
                                                          dbname=save_name + '_training', dbformat='csv', save_sim=False)
                         sampler.sample(repetitions=parser_args.n_runs)
 
@@ -161,7 +140,7 @@ if __name__ == '__main__':
                         save_name = os.path.join(parser_args.out_dir,
                                                  'nRuns-' + str(parser_args.n_runs) + '_fold-' + str(fold) +
                                                  '_group-' + grp + '_method-demc')
-                        sampler = spotpy.algorithms.demcz(spotpy_setup(tmp=train_df, param_bounds=BPLUT2,
+                        sampler = spotpy.algorithms.demcz(spotpy_setup(tmp=train_df, param_bounds=BPLUT,
                                                                        use_sm=parser_args.use_sm),
                                                           dbname=save_name + '_training', dbformat='csv',
                                                           save_sim=False)
