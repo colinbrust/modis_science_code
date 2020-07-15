@@ -565,6 +565,8 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
         # calculate each parameter values in day and night, respectively
         Rn_day = calc_rn(temp=ta_day, albedo=albedo, swrad=swrad, daylength=daylength)  # J/day/m2
+        cond_rn = Rn_day.lt(0)
+        Rn_day = Rn_day.where(cond_rn, 0)
         Rn_night = calc_rn(temp=ta_night, albedo=albedo, swrad=0, daylength=nightlength)
 
         Gsoil_day = calc_soil_heat_flux(bplut=bplut, Rn=Rn_day, temp=ta_day, daylength=daylength, tday=ta_day,
@@ -573,11 +575,11 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
                                           tnight=ta_night)
 
         #  following the User Guide (2017 version)
-        G_day = Gsoil_day.multiply(ee.Image(1).subtract(Fc))
+        G_day = Gsoil_day  # .multiply(ee.Image(1).subtract(Fc))
         cond1 = Rn_day.lt(G_day)
         G_day = G_day.where(cond1, Rn_day)
 
-        G_night = Gsoil_night.multiply(ee.Image(1).subtract(Fc))
+        G_night = Gsoil_night  # .multiply(ee.Image(1).subtract(Fc))
         cond2 = (Rn_night.subtract(G_night)).lt(Rn_day.multiply(-0.5))
         g1 = Rn_night.add(Rn_day.multiply(0.5))
         G_night = G_night.where(cond2, g1)
