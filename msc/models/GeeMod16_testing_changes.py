@@ -1,5 +1,5 @@
 import ee
-from msc.utils import Bplut as bp, GetModisFpar as fp
+from msc.utils import Bplut as bp, GetModisFpar as fp, GapFill as gf
 
 # Global constants
 time = 'system:time_start'
@@ -73,7 +73,16 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         return img
 
     # Import code that contains a spatial BPLUT
-    bplut = bp.zhang_m16_bplut(roi, start, end) if 'bplut' not in kwargs else kwargs.pop('bplut')
+    if 'bplut' in kwargs:
+        print('premade bplut')
+        bplut = kwargs.pop('bplut')
+    elif 'bplut_zhang' in kwargs:
+        print('zhang bplut')
+        bplut = bp.zhang_m16_bplut(roi, start, end)
+    else:
+        print('mod16 bplut')
+        bplut = bp.m16_bplut(roi, start, end)
+    # bplut = bp.m16_bplut(roi, start, end) if 'bplut' not in kwargs else kwargs.pop('bplut')
     bplut = ee.Image(bplut)
 
     # Filter meteorological data
@@ -113,18 +122,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     albedo = albedo.select('Albedo_WSA_shortwave') \
         .map(lambda img: img.rename('albedo').clip(roi))
 
-    # interpolate albedo with using the mean annual albedo each year.
-    mean_albedo = albedo.mean()
-
-    def albedo_fun(img):
-        masked = img.unmask()
-        filled = masked.where(masked.eq(0), mean_albedo)
-
-        return filled.rename('albedo') \
-            .copyProperties(img, ['system:time_start']) \
-            .copyProperties(img, ['system:time_end'])
-
-    albedo_interp = albedo.map(albedo_fun)
+    albedo_interp = gf.gap_fill(albedo)
 
     # Function to join the daily daylength, albedo and meteorology data together
     def dataJoin(left, right):
@@ -170,7 +168,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         t = temp.expression('pow((273.15+Tavg),4)', {  # temp: degree C
             'Tavg': temp})
 
-        ea = temp.expression('1-0.26*exp((-7.77)*0.0001*T*T)', {
+        ea = temp.expression('1-0.261*exp((-7.77)*0.0001*T*T)', {
             'T': temp})
 
         Rnet = t.expression('((1-a)*R+(ea-0.97)*t*sbc)*d', {  # Rn unit:J/m2
@@ -297,7 +295,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             'rho': rho,
             'Cp': Cp,
             'SBC': SBC,
-            't': temp  # temp.add(273.15)
+            't': temp.add(273.15)
         })
         rhrc = rhc.expression('rhc*rrc/(rhc+rrc)', {
             'rhc': rhc,
@@ -363,7 +361,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         return gama
 
     # Function to calculate transpiration that is used in both daytime and nighttime calculations.
-    def le_trans_base(rcorr, Gs1, temp, bplut, LAI, Fwet, rho, gama, s, Ac, Fc, vpd, daylength):
+    def le_trans_base(rcorr, Gs1, temp, bplut, LAI, Fwet, rho, gama, s, Ac, Fc, vpd, daylength, night=False):
 
         Gcu = rcorr.multiply(0.00001)
         Gs2 = bplut.select('gl_sh')
@@ -388,23 +386,40 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             'rho': rho,
             'Cp': Cp,
             'SBC': SBC,
-            't': temp  # temp.add(273.15)
+            't': temp.add(273.15)
         })
         ra = rr.expression('(rh*rr)/(rh+rr)', {'rh': rh, 'rr': rr})
 
-        LEtrans = Ac.expression('(s*Ac+rho*Cp*vpd*Fc*daylength/ra)*(1-fwet)/(s+gama*(1+rs/ra))', {
-            's': s,
-            'Ac': Ac,
-            'Fc': Fc,
-            'rho': rho,
-            'Cp': Cp,
-            'vpd': vpd,
-            'daylength': daylength,
-            'ra': ra,
-            'fwet': Fwet,
-            'gama': gama,
-            'rs': rs
-        })
+        if night:
+
+            print('Night energy zero')
+            LEtrans = rho.expression('(rho*Cp*vpd*Fc*daylength/ra)*(1-fwet)/(s+gama*(1+rs/ra))', {
+                's': s,
+                'Fc': Fc,
+                'rho': rho,
+                'Cp': Cp,
+                'vpd': vpd,
+                'daylength': daylength,
+                'ra': ra,
+                'fwet': Fwet,
+                'gama': gama,
+                'rs': rs
+            })
+        else:
+            print('Night energy normal')
+            LEtrans = Ac.expression('(s*Ac+rho*Cp*vpd*Fc*daylength/ra)*(1-fwet)/(s+gama*(1+rs/ra))', {
+                's': s,
+                'Ac': Ac,
+                'Fc': Fc,
+                'rho': rho,
+                'Cp': Cp,
+                'vpd': vpd,
+                'daylength': daylength,
+                'ra': ra,
+                'fwet': Fwet,
+                'gama': gama,
+                'rs': rs
+            })
         return LEtrans
 
     # Function to calculate daytime plant transpiration
@@ -437,7 +452,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
                              s=s, Ac=Ac, Fc=Fc, vpd=vpd, daylength=daylength)
 
     # Function to calculate night time plant tranpiration
-    def calc_le_trans_night(temp, pa, bplut, LAI, Fwet, rho, gama, s, Ac, Fc, vpd, daylength):
+    def calc_le_trans_night(temp, pa, bplut, LAI, Fwet, rho, gama, s, Ac, Fc, vpd, daylength, night):
         ta = temp.expression('pow(((t+273.15)/293.15),1.75)', {'t': temp})
         rcorr = pa.expression('1.0/((101300/pa)*ta)', {
             'pa': pa,
@@ -447,7 +462,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         Gs1 = ee.Image(0)
 
         return le_trans_base(rcorr=rcorr, Gs1=Gs1, temp=temp, bplut=bplut, LAI=LAI, Fwet=Fwet, rho=rho, gama=gama,
-                             s=s, Ac=Ac, Fc=Fc, vpd=vpd, daylength=daylength)
+                             s=s, Ac=Ac, Fc=Fc, vpd=vpd, daylength=daylength, night=night)
 
     # Function to calculate total soil resistance to water vapor transport
     def calc_total_soil_resistance(temp, vpd, bplut, pa):
@@ -489,7 +504,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             'rho': rho,
             'Cp': Cp,
             'SBC': SBC,
-            'T': temp  # temp.add(273.15)
+            'T': temp.add(273.15)
         })
         return rrs
 
@@ -537,7 +552,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         return PLEsoil
 
     # Function to calculate latent heat flux for non-saturated soil
-    def calc_total_soil_evap(rh, vpd, LEwetsoil, PLEsoil, rew, bplut):
+    def calc_total_soil_evap(rh, vpd, LEwetsoil, PLEsoil, rew):
 
         if 'smapsm' in kwargs:
             return PLEsoil.multiply(rew).add(LEwetsoil)
@@ -545,7 +560,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             fSM = rh.expression('pow((rh*0.01),(vpd/beta))', {
                 'rh': rh,
                 'vpd': vpd,
-                'beta': bplut.select('beta')
+                'beta': 250
             })
             return PLEsoil.multiply(fSM).add(LEwetsoil)
 
@@ -575,6 +590,8 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
         # calculate each parameter values in day and night, respectively
         Rn_day = calc_rn(temp=ta_day, albedo=albedo, swrad=swrad, daylength=daylength)  # J/day/m2
+        cond_rn = Rn_day.lt(0)
+        Rn_day = Rn_day.where(cond_rn, 0)
         Rn_night = calc_rn(temp=ta_night, albedo=albedo, swrad=0, daylength=nightlength)
 
         Gsoil_day = calc_soil_heat_flux(bplut=bplut, Rn=Rn_day, temp=ta_day, daylength=daylength, tday=ta_day,
@@ -583,11 +600,11 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
                                           tnight=ta_night)
 
         #  following the User Guide (2017 version)
-        G_day = Gsoil_day.multiply(ee.Image(1).subtract(Fc))
+        G_day = Gsoil_day  # .multiply(ee.Image(1).subtract(Fc))
         cond1 = Rn_day.lt(G_day)
         G_day = G_day.where(cond1, Rn_day)
 
-        G_night = Gsoil_night.multiply(ee.Image(1).subtract(Fc))
+        G_night = Gsoil_night  # .multiply(ee.Image(1).subtract(Fc))
         cond2 = (Rn_night.subtract(G_night)).lt(Rn_day.multiply(-0.5))
         g1 = Rn_night.add(Rn_day.multiply(0.5))
         G_night = G_night.where(cond2, g1)
@@ -621,9 +638,11 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         LEtrans_day = calc_le_trans_day(temp=ta_day, pa=pa, bplut=bplut, LAI=LAI, Fwet=Fwet_day, rho=rho_day,
                                         gama=gama_day, s=s_day, Ac=Ac_day, Fc=Fc, vpd=vpd_day, daylength=daylength,
                                         sm=sm_rz)
+
+        nt = kwargs['night'] if 'night' in kwargs else False
         LEtrans_night = calc_le_trans_night(temp=ta_night, pa=pa, bplut=bplut, LAI=LAI, Fwet=Fwet_night, rho=rho_night,
                                             gama=gama_night, s=s_night, Ac=Ac_night, Fc=Fc, vpd=vpd_night,
-                                            daylength=nightlength)
+                                            daylength=nightlength, night=nt)
 
         rtot_day = calc_total_soil_resistance(temp=ta_day, vpd=vpd_day, bplut=bplut, pa=pa)
         rtot_night = calc_total_soil_resistance(temp=ta_night, vpd=vpd_night, bplut=bplut, pa=pa)
@@ -640,9 +659,9 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         PLEsoil_night = calc_potential_soil_evap(rtot=rtot_night, rrs=rrs_night, s=s_night, Asoil=Asoil_night,
                                                  rho=rho_night, Fc=Fc, vpd=vpd_night, Fwet=Fwet_night,
                                                  daylength=nightlength, gama=gama_night)
-        LEsoil_day = calc_total_soil_evap(rh=rh, vpd=vpd_day, LEwetsoil=LEwetsoil_day, PLEsoil=PLEsoil_day, rew=rew, bplut=bplut)
+        LEsoil_day = calc_total_soil_evap(rh=rh, vpd=vpd_day, LEwetsoil=LEwetsoil_day, PLEsoil=PLEsoil_day, rew=rew)
         LEsoil_night = calc_total_soil_evap(rh=rh, vpd=vpd_night, LEwetsoil=LEwetsoil_night, PLEsoil=PLEsoil_night,
-                                            rew=rew, bplut=bplut)
+                                            rew=rew)
 
         # calculate total daily LE, PLE, ET and PET.
         LE_day = LEwet_day.add(LEtrans_day).add(LEsoil_day)
@@ -697,4 +716,5 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     all_variables = kwargs.pop('all_variables') if 'all_variables' in kwargs else False
     if not all_variables:
         return et_out.select(['ET', 'ET_trans', 'ET_soil', 'ET_leaf'])
+
     return et_out
