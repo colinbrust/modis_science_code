@@ -639,13 +639,8 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
                                         gama=gama_day, s=s_day, Ac=Ac_day, Fc=Fc, vpd=vpd_day, daylength=daylength,
                                         sm=sm_rz)
 
-
-        # LEtrans_night = calc_le_trans_night(temp=ta_night, pa=pa, bplut=bplut, LAI=LAI, Fwet=Fwet_night, rho=rho_night,
-        #                                     gama=gama_night, s=s_night, Ac=Ac_night, Fc=Fc, vpd=vpd_night,
-        #                                     daylength=nightlength):q
-
         LEtrans_night = calc_le_trans_night(temp=ta_night, pa=pa, bplut=bplut, LAI=LAI, Fwet=Fwet_night, rho=rho_night,
-                                            gama=gama_night, s=s_night, Ac=ee.Image(0), Fc=Fc, vpd=vpd_night,
+                                            gama=gama_night, s=s_night, Ac=Ac_night, Fc=Fc, vpd=vpd_night,
                                             daylength=nightlength)
 
         rtot_day = calc_total_soil_resistance(temp=ta_day, vpd=vpd_day, bplut=bplut, pa=pa)
