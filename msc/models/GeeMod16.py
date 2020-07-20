@@ -74,7 +74,16 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         return img
 
     # Import code that contains a spatial BPLUT
-    bplut = bp.m16_bplut(roi, start, end) if 'bplut' not in kwargs else kwargs.pop('bplut')
+    if 'bplut' in kwargs:
+        print('premade bplut')
+        bplut = kwargs.pop('bplut')
+    elif 'bplut_zhang' in kwargs:
+        print('zhang bplut')
+        bplut = bp.zhang_m16_bplut(roi, start, end)
+    else:
+        print('mod16 bplut')
+        bplut = bp.m16_bplut(roi, start, end)
+    # bplut = bp.m16_bplut(roi, start, end) if 'bplut' not in kwargs else kwargs.pop('bplut')
     bplut = ee.Image(bplut)
 
     # Filter meteorological data
@@ -527,7 +536,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         return PLEsoil
 
     # Function to calculate latent heat flux for non-saturated soil
-    def calc_total_soil_evap(rh, vpd, LEwetsoil, PLEsoil, rew):
+    def calc_total_soil_evap(rh, vpd, LEwetsoil, PLEsoil, rew, bplut):
         
         if 'smapsm' in kwargs:
             return PLEsoil.multiply(rew).add(LEwetsoil)
@@ -535,7 +544,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             fSM = rh.expression('pow((rh*0.01),(vpd/beta))', {
                 'rh': rh,
                 'vpd': vpd,
-                'beta': 250
+                'beta': bplut.select('beta')
             })
             return PLEsoil.multiply(fSM).add(LEwetsoil)
 
@@ -632,9 +641,10 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         PLEsoil_night = calc_potential_soil_evap(rtot=rtot_night, rrs=rrs_night, s=s_night, Asoil=Asoil_night,
                                                  rho=rho_night, Fc=Fc, vpd=vpd_night, Fwet=Fwet_night,
                                                  daylength=nightlength, gama=gama_night)
-        LEsoil_day = calc_total_soil_evap(rh=rh, vpd=vpd_day, LEwetsoil=LEwetsoil_day, PLEsoil=PLEsoil_day, rew=rew)
+        LEsoil_day = calc_total_soil_evap(rh=rh, vpd=vpd_day, LEwetsoil=LEwetsoil_day, PLEsoil=PLEsoil_day, rew=rew,
+                                          bplut=bplut)
         LEsoil_night = calc_total_soil_evap(rh=rh, vpd=vpd_night, LEwetsoil=LEwetsoil_night, PLEsoil=PLEsoil_night,
-                                            rew=rew)
+                                            rew=rew, bplut=bplut)
 
         # calculate total daily LE, PLE, ET and PET.
         LE_day = LEwet_day.add(LEtrans_day).add(LEsoil_day)
