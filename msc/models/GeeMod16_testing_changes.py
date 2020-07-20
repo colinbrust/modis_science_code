@@ -73,8 +73,19 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         return img
 
     # Import code that contains a spatial BPLUT
-    bplut = bp.zhang_m16_bplut(roi, start, end) if 'bplut' not in kwargs else kwargs.pop('bplut')
+    # Import code that contains a spatial BPLUT
+    if 'bplut' in kwargs:
+        print('premade bplut')
+        bplut = kwargs.pop('bplut')
+    elif 'bplut_zhang' in kwargs:
+        print('zhang bplut')
+        bplut = bp.zhang_m16_bplut(roi, start, end)
+    else:
+        print('mod16 bplut')
+        bplut = bp.m16_bplut(roi, start, end)
+    # bplut = bp.m16_bplut(roi, start, end) if 'bplut' not in kwargs else kwargs.pop('bplut')
     bplut = ee.Image(bplut)
+
 
     # Filter meteorological data
     meteorology = meteorology \
@@ -388,7 +399,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
             'rho': rho,
             'Cp': Cp,
             'SBC': SBC,
-            't': temp  # temp.add(273.15)
+            't': temp.add(273.15)
         })
         ra = rr.expression('(rh*rr)/(rh+rr)', {'rh': rh, 'rr': rr})
 
@@ -433,6 +444,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
                 'rcorr': rcorr
             })
 
+        print('trans_day')
         return le_trans_base(rcorr=rcorr, Gs1=Gs1, temp=temp, bplut=bplut, LAI=LAI, Fwet=Fwet, rho=rho, gama=gama,
                              s=s, Ac=Ac, Fc=Fc, vpd=vpd, daylength=daylength)
 
@@ -446,6 +458,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
         Gs1 = ee.Image(0)
 
+        print('trans_night')
         return le_trans_base(rcorr=rcorr, Gs1=Gs1, temp=temp, bplut=bplut, LAI=LAI, Fwet=Fwet, rho=rho, gama=gama,
                              s=s, Ac=Ac, Fc=Fc, vpd=vpd, daylength=daylength)
 
@@ -540,8 +553,10 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     def calc_total_soil_evap(rh, vpd, LEwetsoil, PLEsoil, rew, bplut):
 
         if 'smapsm' in kwargs:
+            print('using SMAP soil evap')
             return PLEsoil.multiply(rew).add(LEwetsoil)
         else:
+            print('using normal soil evap')
             fSM = rh.expression('pow((rh*0.01),(vpd/beta))', {
                 'rh': rh,
                 'vpd': vpd,
@@ -575,6 +590,8 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
 
         # calculate each parameter values in day and night, respectively
         Rn_day = calc_rn(temp=ta_day, albedo=albedo, swrad=swrad, daylength=daylength)  # J/day/m2
+        cond_rn = Rn_day.lt(0)
+        Rn_day = Rn_day.where(cond_rn, 0)
         Rn_night = calc_rn(temp=ta_night, albedo=albedo, swrad=0, daylength=nightlength)
 
         Gsoil_day = calc_soil_heat_flux(bplut=bplut, Rn=Rn_day, temp=ta_day, daylength=daylength, tday=ta_day,
@@ -621,8 +638,14 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         LEtrans_day = calc_le_trans_day(temp=ta_day, pa=pa, bplut=bplut, LAI=LAI, Fwet=Fwet_day, rho=rho_day,
                                         gama=gama_day, s=s_day, Ac=Ac_day, Fc=Fc, vpd=vpd_day, daylength=daylength,
                                         sm=sm_rz)
+
+
+        # LEtrans_night = calc_le_trans_night(temp=ta_night, pa=pa, bplut=bplut, LAI=LAI, Fwet=Fwet_night, rho=rho_night,
+        #                                     gama=gama_night, s=s_night, Ac=Ac_night, Fc=Fc, vpd=vpd_night,
+        #                                     daylength=nightlength):q
+
         LEtrans_night = calc_le_trans_night(temp=ta_night, pa=pa, bplut=bplut, LAI=LAI, Fwet=Fwet_night, rho=rho_night,
-                                            gama=gama_night, s=s_night, Ac=Ac_night, Fc=Fc, vpd=vpd_night,
+                                            gama=gama_night, s=s_night, Ac=ee.Image(0), Fc=Fc, vpd=vpd_night,
                                             daylength=nightlength)
 
         rtot_day = calc_total_soil_resistance(temp=ta_day, vpd=vpd_day, bplut=bplut, pa=pa)

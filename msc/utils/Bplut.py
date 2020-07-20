@@ -195,6 +195,18 @@ def m16_bplut(roi, start, end):
                 10: 0.019,
                 11: 0.050}
 
+    Beta = {1: 250.0,
+            2: 250.0,
+            3: 250.0,
+            4: 250.0,
+            5: 250.0,
+            6: 250.0,
+            7: 250.0,
+            8: 250.0,
+            9: 250.0,
+            10: 250.0,
+            11: 250.0}
+
     tminclose = ee.Image(0)
     tminopen = ee.Image(0)
     vpdclose = ee.Image(0)
@@ -206,6 +218,7 @@ def m16_bplut(roi, start, end):
     cl = ee.Image(0)
     rblmin = ee.Image(0)
     rblmax = ee.Image(0)
+    beta = ee.Image(0)
 
     for i in range(1, 12):
         tminclose = tminclose.where(lc.eq(i), Tminclose[i])
@@ -219,6 +232,7 @@ def m16_bplut(roi, start, end):
         cl = cl.where(lc.eq(i), CL[i])
         rblmin = rblmin.where(lc.eq(i), RBL_min[i])
         rblmax = rblmax.where(lc.eq(i), RBL_max[i])
+        beta = beta.where(lc.eq(i), Beta[i])
 
     bplut = lc.addBands(tminclose) \
         .addBands(tminopen) \
@@ -231,9 +245,10 @@ def m16_bplut(roi, start, end):
         .addBands(cl) \
         .addBands(rblmin) \
         .addBands(rblmax) \
-        .select([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        .addBands(beta) \
+        .select([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
                 ['landcover', 'tmin_close', 'tmin_open', 'vpd_close', 'vpd_open', 'sm_open', 'sm_close',
-                 'gl_sh', 'gl_e_wv', 'Cl', 'rbl_min', 'rbl_max'])
+                 'gl_sh', 'gl_e_wv', 'Cl', 'rbl_min', 'rbl_max', 'beta'])
 
     return bplut.updateMask(pft_lc.neq(0))
 
