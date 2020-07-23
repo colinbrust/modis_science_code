@@ -110,7 +110,7 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     # QA/QC filter for MODIS albedo
     def albedoqc(img):
         qc = img.select(['BRDF_Albedo_Band_Mandatory_Quality_shortwave']) \
-            .bitwiseAnd(1).eq(0)
+            .bitwiseAnd(0).eq(0)
 
         return img.updateMask(qc)
 
@@ -123,7 +123,17 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
     albedo = albedo.select('Albedo_WSA_shortwave') \
         .map(lambda img: img.rename('albedo').clip(roi))
 
-    albedo_interp = gf.gap_fill(albedo)
+    mean_albedo = albedo.mean()
+
+    def albedo_fun(img):
+        masked = img.unmask()
+        filled = masked.where(masked.eq(0), mean_albedo)
+
+        return filled.rename('albedo') \
+            .copyProperties(img, ['system:time_start']) \
+            .copyProperties(img, ['system:time_end'])
+
+    albedo_interp = albedo.map(albedo_fun)
 
     # Function to join the daily daylength, albedo and meteorology data together
     def dataJoin(left, right):
