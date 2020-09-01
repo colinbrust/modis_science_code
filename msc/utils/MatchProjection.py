@@ -9,21 +9,21 @@ Taken from: https://github.com/jgomezdans/eoldas_ng_observations/blob/master/eol
 """
 
 
-def reproject_image_to_master(master, slave, out_name, method='cubic'):
-    slave_ds = gdal.Open(slave)
-    if slave_ds is None:
-        raise IOError("GDAL could not open slave file {}".format(slave))
-    slave_proj = slave_ds.GetProjection()
-    data_type = slave_ds.GetRasterBand(1).DataType
-    n_bands = slave_ds.RasterCount
+def reproject_image_to_template(template, newDs, out_name, method='cubic'):
+    newDs_ds = gdal.Open(newDs)
+    if newDs_ds is None:
+        raise IOError("GDAL could not open newDs file {}".format(newDs))
+    newDs_proj = newDs_ds.GetProjection()
+    data_type = newDs_ds.GetRasterBand(1).DataType
+    n_bands = newDs_ds.RasterCount
 
-    master_ds = gdal.Open(master)
-    if master_ds is None:
-        raise IOError("GDAL could not open master file {}".format(master))
-    master_proj = master_ds.GetProjection()
-    master_geotrans = master_ds.GetGeoTransform()
-    w = master_ds.RasterXSize
-    h = master_ds.RasterYSize
+    template_ds = gdal.Open(template)
+    if template_ds is None:
+        raise IOError("GDAL could not open template file {}".format(template))
+    template_proj = template_ds.GetProjection()
+    template_geotrans = template_ds.GetGeoTransform()
+    w = template_ds.RasterXSize
+    h = template_ds.RasterYSize
 
     proj_methods = {'cubic': gdal.GRA_Cubic,
                     'nearest': gdal.GRA_NearestNeighbour}
@@ -33,11 +33,10 @@ def reproject_image_to_master(master, slave, out_name, method='cubic'):
     except KeyError as e:
         print("Error: {}. Method argument must be one of 'cubic' or 'nearest'")
 
-    print(out_name)
     dst_ds = gdal.GetDriverByName('GTiff').Create(out_name, w, h, n_bands, data_type)
-    dst_ds.SetGeoTransform(master_geotrans)
-    dst_ds.SetProjection(master_proj)
-    gdal.ReprojectImage(slave_ds, dst_ds, slave_proj, master_proj, m)
+    dst_ds.SetGeoTransform(template_geotrans)
+    dst_ds.SetProjection(template_proj)
+    gdal.ReprojectImage(newDs_ds, dst_ds, newDs_proj, template_proj, m)
     dst_ds = None  # Flush to disk
     return out_name
 
@@ -58,6 +57,6 @@ if __name__ == '__main__':
 
     for f in Path(args.old_dir[0]).glob('*.tif'):
         new_name = os.path.join(args.new_dir[0], os.path.basename(f))
-        reproject_image_to_master(args.template[0], str(f), new_name)
+        reproject_image_to_template(args.template[0], str(f), new_name)
 
 
