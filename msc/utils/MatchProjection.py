@@ -46,7 +46,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Reproject/Resize a directory of GTiffs to a template proj/size')
     parser.add_argument('-t', '--template', type=str, nargs=1,
                         help='Template GTiff file')
-    parser.add_argument('-od' '--old_dir', type=str, nargs=1,
+    parser.add_argument('-od', '--old_dir', type=str, nargs=1,
                         help='Directory containing images for reprojection')
     parser.add_argument('-nd', '--new_dir', type=str, nargs=1,
                         help='Directory where new images will be saved')
@@ -58,5 +58,4 @@ if __name__ == '__main__':
     for f in Path(args.old_dir[0]).glob('*.tif'):
         new_name = os.path.join(args.new_dir[0], os.path.basename(f))
         reproject_image_to_template(args.template[0], str(f), new_name)
-
 
