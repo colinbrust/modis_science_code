@@ -551,10 +551,9 @@ def MOD16(roi: ee.Geometry, year: int, **kwargs) -> ee.ImageCollection:
         if 'smapsm' in kwargs:
             return PLEsoil.multiply(rew).add(LEwetsoil)
         else:
-            fSM = rh.expression('pow((rh*0.01),(vpd/beta))', {
+            fSM = rh.expression('pow((rh*0.01),(vpd/250))', {
                 'rh': rh,
-                'vpd': vpd,
-                'beta': bplut.select('beta')
+                'vpd': vpd
             })
             return PLEsoil.multiply(fSM).add(LEwetsoil)
 
