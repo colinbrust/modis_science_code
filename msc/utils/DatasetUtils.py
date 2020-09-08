@@ -35,12 +35,15 @@ def filter_nan_obs(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def join_with_groups(df: pd.DataFrame, grp_df: pd.DataFrame) -> pd.DataFrame:
+def join_with_groups(df: pd.DataFrame, grp_df: pd.DataFrame = None) -> pd.DataFrame:
     """
     Join a dataframe containing model or observation data with a dataframe that contains PFT grouping info.
     :param df: pd.DataFrame with model or observation data
     :param grp_df: pd.DataFrame with grouping data
     :return: Joined pd.DataFrame between model/observations and groups
     """
-    df = df.merge(grp_df, how='left', left_on='name', right_on='name')
+    if grp_df is None:
+        df['group'] = 'NoGroup'
+    else:
+        df = df.merge(grp_df, how='left', left_on='name', right_on='name')
     return df

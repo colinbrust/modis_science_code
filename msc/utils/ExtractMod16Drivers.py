@@ -1,18 +1,20 @@
 import ee
+ee.Initialize()
+import msc.utils.GapFill as gf
+import msc.utils.GetModisFpar as fp
 import os
 import pandas as pd
-from typing import Callable, TypeVar, Generic
 
-# Area in meters to buffer around each point and run the model at
-BUFFER_SIZE = 10000
-T = TypeVar('T')
+# Global constants
+time = 'system:time_start'
+day = (24 * 60 * 60 * 1000)
 
 
-class ExtractGeeData(object):
+class ExtractDrivers(object):
     """
     Class to extract GEE data at flux tower locations in order to run and calibrate MOD16 and MOD17.
     """
-    def __init__(self, template: str, model: Callable, out_dir: str, **kwargs: Generic[T]) -> None:
+    def __init__(self, template: str, out_dir: str) -> None:
         """
         :param template: File path to a .csv containing columns 'name', 'date', 'lat', 'longitude', and 'target', which
         correspond to the site name where ground observations came from, the date of the observation, the latitude and
@@ -27,8 +29,6 @@ class ExtractGeeData(object):
         can be taken from the template file.
         """
         self.template = pd.read_csv(template)
-        self.model = model
-        self.kwargs = kwargs
         self.out_dir = out_dir
         self.full_dataset = pd.DataFrame()
         self.run_instructions = self._get_locations_years()
@@ -49,6 +49,70 @@ class ExtractGeeData(object):
 
         return df
 
+    def make_coll_stack(self, year, roi):
+
+        start = ee.Date.fromYMD(year, 1, 1)
+        end = ee.Date.fromYMD(year + 1, 1, 1)
+
+        gm = ee.ImageCollection("IDAHO_EPSCOR/GRIDMET") \
+            .select(['srad', 'tmmn', 'tmmx', 'rmax', 'rmin', 'vpd']) \
+            .filterDate(start, end)
+
+        def albedoqc(img):
+            qc = img.select(['BRDF_Albedo_Band_Mandatory_Quality_shortwave']) \
+                .bitwiseAnd(1).eq(0)
+
+            return img.updateMask(qc)
+
+        # Import MODIS albedo data, daily, 500m
+        albedo = ee.ImageCollection('MODIS/006/MCD43A3') \
+            .filterBounds(roi) \
+            .filterDate(start.advance(-1, 'month'), end) \
+            .map(albedoqc)
+
+        albedo = albedo.select('Albedo_WSA_shortwave') \
+            .map(lambda img: img.rename('albedo').clip(roi)) \
+            .filterDate(start, end)
+
+        albedo = gf.gap_fill(albedo) \
+            .filterDate(start, end)
+
+        dayl = ee.ImageCollection("NASA/ORNL/DAYMET_V3").select('dayl') \
+            .filterDate(start, end)
+
+        elev = ee.Image('USGS/NED')
+
+        sm = ee.ImageCollection('users/colinbrust/NatureRun') \
+            .filterDate(start, end)
+
+        lai_fp = fp.modis_fpar_lai(roi, year)
+
+        lai = ee.ImageCollection(lai_fp.get('LAI'))
+        fc = ee.ImageCollection(lai_fp.get('FPAR'))
+
+        out = self.dataJoin(gm, albedo)
+        out = self.dataJoin(out, dayl)
+        out = self.dataJoin(out, sm)
+        out = self.dataJoin(out, lai)
+        out = self.dataJoin(out, fc)
+
+        out = out.map(lambda img: img.addBands(elev).clip(roi))
+        return out
+
+    @staticmethod
+    def dataJoin(left, right):
+        filt = ee.Filter.maxDifference(
+            difference=day,
+            leftField=time,
+            rightField=time)
+
+        join = ee.Join.saveBest(
+            matchKey='match',
+            measureKey='delta_t')
+
+        return ee.ImageCollection(join.apply(left, right, filt)) \
+            .map(lambda img: img.addBands(img.get('match')))
+
     @staticmethod
     def _reducer(img: ee.Image, point: ee.geometry.Geometry, name: str) -> ee.Feature:
         """
@@ -65,9 +129,9 @@ class ExtractGeeData(object):
             maxPixels=1e8
         )
 
-        time = img.get('system:time_start')
+        date_ms = img.get(time)
 
-        return ee.Feature(None, reduced).set('system:time_start', time).set('name', name)
+        return ee.Feature(None, reduced).set('system:time_start', date_ms).set('name', name)
 
     def _run_single_location(self, name: str, year: int, lat: float, lon: float) -> pd.DataFrame:
         """
@@ -77,12 +141,12 @@ class ExtractGeeData(object):
         :param lon: Longitude of site location
         :return: Pandas data frame containing model results
         """
-        pnt = ee.Geometry.Point([lon, lat]).buffer(BUFFER_SIZE)
-        model_results = self.model(roi=pnt, year=year, **self.kwargs)
-        model_results = model_results.map(lambda img: self._reducer(img=img, point=pnt, name=name))
-        model_results = model_results.getInfo()
+        pnt = ee.Geometry.Point([lon, lat]).buffer(500)
+        result = self.make_coll_stack(year=year, roi=pnt)
+        result = result.map(lambda img: self._reducer(img=ee.Image(img), point=pnt, name=name), opt_dropNulls=True)
+        result = result.getInfo()
 
-        listed = model_results['features']
+        listed = result['features']
 
         df = []
         for day in listed:
@@ -137,3 +201,5 @@ class ExtractGeeData(object):
 
         self.full_dataset.to_csv(os.path.join(self.out_dir, 'modeled_results.csv'), index=False)
         return self.full_dataset
+
+

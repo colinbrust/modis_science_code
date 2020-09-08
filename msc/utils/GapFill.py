@@ -1,5 +1,4 @@
 import ee
-ee.Initialize()
 
 
 def gap_fill(collection: ee.ImageCollection) -> ee.ImageCollection:
